@@ -56,14 +56,14 @@ const VkLayerProperties kLayerProps = {
         GFXRECON_PROJECT_VERSION_DESIGNATION
 };
 
-struct LayerExtensionProps
+struct VulkanLayerExtensionProps
 {
     VkExtensionProperties    props;
     std::vector<std::string> instance_funcs;
     std::vector<std::string> device_funcs;
 };
 
-const std::vector<struct LayerExtensionProps> kDeviceExtensionProps = {
+const std::vector<struct VulkanLayerExtensionProps> kDeviceExtensionProps = {
     { VkExtensionProperties{ "VK_EXT_tooling_info", 1 }, { "vkGetPhysicalDeviceToolPropertiesEXT" }, {} },
     { VkExtensionProperties{ VK_EXT_DEBUG_MARKER_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_SPEC_VERSION },
       {},
@@ -79,17 +79,17 @@ const std::vector<struct LayerExtensionProps> kDeviceExtensionProps = {
 /// An alphabetical list of device extensions which we do not report upstream if
 /// other layers or ICDs expose them to us.
 const char* const kUnsupportedDeviceExtensions[] = { VK_AMDX_SHADER_ENQUEUE_EXTENSION_NAME,
-                                                     VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME,
-                                                     VK_EXT_PIPELINE_PROPERTIES_EXTENSION_NAME,
-                                                     VK_EXT_SHADER_MODULE_IDENTIFIER_EXTENSION_NAME,
-                                                     VK_HUAWEI_SUBPASS_SHADING_EXTENSION_NAME,
-                                                     VK_NVX_BINARY_IMPORT_EXTENSION_NAME,
-                                                     VK_NVX_BINARY_IMPORT_EXTENSION_NAME,
-                                                     VK_NV_COPY_MEMORY_INDIRECT_EXTENSION_NAME,
-                                                     VK_NV_LOW_LATENCY_2_EXTENSION_NAME,
-                                                     VK_NV_MEMORY_DECOMPRESSION_EXTENSION_NAME,
-                                                     VK_VALVE_DESCRIPTOR_SET_HOST_MAPPING_EXTENSION_NAME,
-                                                     VK_NV_CUDA_KERNEL_LAUNCH_EXTENSION_NAME };
+                                                           VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME,
+                                                           VK_EXT_PIPELINE_PROPERTIES_EXTENSION_NAME,
+                                                           VK_EXT_SHADER_MODULE_IDENTIFIER_EXTENSION_NAME,
+                                                           VK_HUAWEI_SUBPASS_SHADING_EXTENSION_NAME,
+                                                           VK_NVX_BINARY_IMPORT_EXTENSION_NAME,
+                                                           VK_NVX_BINARY_IMPORT_EXTENSION_NAME,
+                                                           VK_NV_COPY_MEMORY_INDIRECT_EXTENSION_NAME,
+                                                           VK_NV_LOW_LATENCY_2_EXTENSION_NAME,
+                                                           VK_NV_MEMORY_DECOMPRESSION_EXTENSION_NAME,
+                                                           VK_VALVE_DESCRIPTOR_SET_HOST_MAPPING_EXTENSION_NAME,
+                                                           VK_NV_CUDA_KERNEL_LAUNCH_EXTENSION_NAME };
 
 static void RemoveExtensions(std::vector<VkExtensionProperties>& extensionProps,
                              const char* const                   screenedExtensions[],
@@ -176,9 +176,9 @@ static PFN_GetPhysicalDeviceProcAddr GetNextGPDPA(const VkInstance instance)
     return it_gpdpa->second;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL dispatch_CreateInstance(const VkInstanceCreateInfo*  pCreateInfo,
-                                                       const VkAllocationCallbacks* pAllocator,
-                                                       VkInstance*                  pInstance)
+VKAPI_ATTR VkResult VKAPI_CALL dispatch_VulkanCreateInstance(const VkInstanceCreateInfo*  pCreateInfo,
+                                                             const VkAllocationCallbacks* pAllocator,
+                                                             VkInstance*                  pInstance)
 {
     VkResult result = VK_ERROR_INITIALIZATION_FAILED;
 
@@ -224,10 +224,10 @@ VKAPI_ATTR VkResult VKAPI_CALL dispatch_CreateInstance(const VkInstanceCreateInf
     return result;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL dispatch_CreateDevice(VkPhysicalDevice             physicalDevice,
-                                                     const VkDeviceCreateInfo*    pCreateInfo,
-                                                     const VkAllocationCallbacks* pAllocator,
-                                                     VkDevice*                    pDevice)
+VKAPI_ATTR VkResult VKAPI_CALL dispatch_VulkanCreateDevice(VkPhysicalDevice             physicalDevice,
+                                                           const VkDeviceCreateInfo*    pCreateInfo,
+                                                           const VkAllocationCallbacks* pAllocator,
+                                                           VkDevice*                    pDevice)
 {
     VkResult                 result = VK_ERROR_INITIALIZATION_FAILED;
     VkLayerDeviceCreateInfo* chain_info =
@@ -265,7 +265,7 @@ VKAPI_ATTR VkResult VKAPI_CALL dispatch_CreateDevice(VkPhysicalDevice           
     return result;
 }
 
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetInstanceProcAddr(VkInstance instance, const char* pName)
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL VulkanGetInstanceProcAddr(VkInstance instance, const char* pName)
 {
     PFN_vkVoidFunction result = nullptr;
 
@@ -328,7 +328,7 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetInstanceProcAddr(VkInstance instance
     return result;
 }
 
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetDeviceProcAddr(VkDevice device, const char* pName)
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL VulkanGetDeviceProcAddr(VkDevice device, const char* pName)
 {
     PFN_vkVoidFunction result = nullptr;
 
@@ -376,7 +376,8 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetDeviceProcAddr(VkDevice device, cons
  * but we do need to unwrap the instance before the downstream layer
  * sees it.
  */
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetPhysicalDeviceProcAddr(VkInstance ourInstanceWrapper, const char* pName)
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL VulkanGetPhysicalDeviceProcAddr(VkInstance  ourInstanceWrapper,
+                                                                         const char* pName)
 {
     PFN_vkVoidFunction result = nullptr;
 
@@ -392,10 +393,10 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetPhysicalDeviceProcAddr(VkInstance ou
     return result;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL EnumerateDeviceExtensionProperties(VkPhysicalDevice       physicalDevice,
-                                                                  const char*            pLayerName,
-                                                                  uint32_t*              pPropertyCount,
-                                                                  VkExtensionProperties* pProperties)
+VKAPI_ATTR VkResult VKAPI_CALL VulkanEnumerateDeviceExtensionProperties(VkPhysicalDevice       physicalDevice,
+                                                                        const char*            pLayerName,
+                                                                        uint32_t*              pPropertyCount,
+                                                                        VkExtensionProperties* pProperties)
 {
     VkResult result = VK_SUCCESS;
 
@@ -497,9 +498,9 @@ VKAPI_ATTR VkResult VKAPI_CALL EnumerateDeviceExtensionProperties(VkPhysicalDevi
     return result;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceExtensionProperties(const char*            pLayerName,
-                                                                    uint32_t*              pPropertyCount,
-                                                                    VkExtensionProperties* pProperties)
+VKAPI_ATTR VkResult VKAPI_CALL VulkanEnumerateInstanceExtensionProperties(const char*            pLayerName,
+                                                                          uint32_t*              pPropertyCount,
+                                                                          VkExtensionProperties* pProperties)
 {
     VkResult result = VK_SUCCESS;
 
@@ -518,8 +519,8 @@ VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceExtensionProperties(const char* 
     return result;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceLayerProperties(uint32_t*          pPropertyCount,
-                                                                VkLayerProperties* pProperties)
+VKAPI_ATTR VkResult VKAPI_CALL VulkanEnumerateInstanceLayerProperties(uint32_t*          pPropertyCount,
+                                                                      VkLayerProperties* pProperties)
 {
     VkResult result = VK_SUCCESS;
 
@@ -534,7 +535,8 @@ VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceLayerProperties(uint32_t*       
     {
         if ((pPropertyCount != nullptr) && (*pPropertyCount >= 1))
         {
-            util::platform::MemoryCopy(pProperties, sizeof(*pProperties), &kLayerProps, sizeof(kLayerProps));
+            util::platform::MemoryCopy(
+                pProperties, sizeof(*pProperties), &kLayerProps, sizeof(kLayerProps));
             *pPropertyCount = 1;
         }
         else
@@ -546,12 +548,12 @@ VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceLayerProperties(uint32_t*       
     return result;
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL EnumerateDeviceLayerProperties(VkPhysicalDevice   physicalDevice,
-                                                              uint32_t*          pPropertyCount,
-                                                              VkLayerProperties* pProperties)
+VKAPI_ATTR VkResult VKAPI_CALL VulkanEnumerateDeviceLayerProperties(VkPhysicalDevice   physicalDevice,
+                                                                    uint32_t*          pPropertyCount,
+                                                                    VkLayerProperties* pProperties)
 {
     GFXRECON_UNREFERENCED_PARAMETER(physicalDevice);
-    return EnumerateInstanceLayerProperties(pPropertyCount, pProperties);
+    return VulkanEnumerateInstanceLayerProperties(pPropertyCount, pProperties);
 }
 
 GFXRECON_END_NAMESPACE(vulkan_entry)
