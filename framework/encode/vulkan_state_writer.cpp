@@ -638,7 +638,8 @@ void VulkanStateWriter::WritePipelineState(const VulkanStateTable& state_table)
             if (wrapper->render_pass_dependency.create_call_id != format::ApiCallId::ApiCall_Unknown)
             {
                 // Check for graphics-specific creation dependencies that no longer exist.
-                auto render_pass_wrapper = state_table.GetRenderPassWrapper(wrapper->render_pass_dependency.handle_id);
+                auto render_pass_wrapper =
+                    state_table.GetRenderPassWrapper(wrapper->render_pass_dependency.handle_id);
                 if (render_pass_wrapper == nullptr)
                 {
                     // The object no longer exists, so a temporary object must be created.
@@ -826,7 +827,8 @@ void VulkanStateWriter::WriteDescriptorSetState(const VulkanStateTable& state_ta
     state_table.VisitWrappers([&](const vulkan_wrappers::DescriptorSetWrapper* wrapper) {
         assert(wrapper != nullptr);
 
-        auto ds_layout_wrapper = state_table.GetDescriptorSetLayoutWrapper(wrapper->set_layout_dependency.handle_id);
+        auto ds_layout_wrapper =
+            state_table.GetDescriptorSetLayoutWrapper(wrapper->set_layout_dependency.handle_id);
         if (ds_layout_wrapper == nullptr)
         {
             // The object no longer exists, so a temporary object must be created.
