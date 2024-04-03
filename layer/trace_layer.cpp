@@ -29,9 +29,9 @@
 #include "encode/vulkan_capture_manager.h"
 #include "encode/vulkan_handle_wrapper_util.h"
 #include "generated/generated_layer_func_table.h"
-//#ifdef ENABLE_OPENXR_SUPPORT
-//#include "generated/generated_openxr_layer_func_table.h"
-//#endif
+#ifdef ENABLE_OPENXR_SUPPORT
+#include "generated/generated_openxr_layer_func_table.h"
+#endif
 #include "generated/generated_vulkan_api_call_encoders.h"
 #include "util/platform.h"
 
@@ -619,6 +619,31 @@ XRAPI_ATTR XrResult XRAPI_CALL OpenXrCreateApiLayerInstance(const XrInstanceCrea
     return result;
 }
 
+XRAPI_ATTR XrResult XRAPI_CALL OpenXrEnumerateApiLayerProperties(uint32_t              propertyCapacityInput,
+                                                                 uint32_t*             propertyCountOutput,
+                                                                 XrApiLayerProperties* properties)
+{
+    XrResult result = XR_ERROR_FUNCTION_UNSUPPORTED;
+
+    if (properties == nullptr)
+    {
+        if (propertyCountOutput != nullptr)
+        {
+            *propertyCountOutput = 1;
+        }
+    }
+    else
+    {
+        if (propertyCapacityInput >= 1)
+        {
+            util::platform::MemoryCopy(properties, sizeof(*properties), &kOpenXrLayerProps, sizeof(kOpenXrLayerProps));
+            *propertyCountOutput = 1;
+        }
+    }
+
+    return result;
+}
+
 XRAPI_ATTR XrResult XRAPI_CALL OpenXrGetInstanceProcAddr(XrInstance          instance,
                                                          const char*         name,
                                                          PFN_xrVoidFunction* function)
@@ -636,6 +661,11 @@ XRAPI_ATTR XrResult XRAPI_CALL OpenXrGetInstanceProcAddr(XrInstance          ins
         *function = reinterpret_cast<PFN_xrVoidFunction>(OpenXrEnumerateInstanceExtensionProperties);
         result    = XR_SUCCESS;
     }
+    else if (!strcmp(name, "xrEnumerateApiLayerProperties"))
+    {
+        *function = reinterpret_cast<PFN_xrVoidFunction>(OpenXrEnumerateApiLayerProperties);
+        result    = XR_SUCCESS;
+    }
     else if (!strcmp(name, "xrCreateApiLayerInstance"))
     {
         *function = reinterpret_cast<PFN_xrVoidFunction>(OpenXrCreateApiLayerInstance);
@@ -650,33 +680,39 @@ XRAPI_ATTR XrResult XRAPI_CALL OpenXrGetInstanceProcAddr(XrInstance          ins
     }
     else
     {
-        /*
-                const OpenXrInstanceInfo& info = xr_instance_infos[instance];
+        const OpenXrInstanceInfo& info = xr_instance_infos[instance];
 
-                auto table = encode::GetOpenXrInstanceTable(instance);
-                if ((table != nullptr) && (table->GetInstanceProcAddr != nullptr) &&
-                    (table->GetInstanceProcAddr(instance, name) != nullptr))
-                {
-                    const auto entry = openxr_func_table.find(name);
-                    if (entry != openxr_func_table.end())
-                    {
-                        *function = entry->second;
-                        result    = XR_SUCCESS;
-                    }
-                }
+        auto table = encode::GetOpenXrInstanceTable(instance);
+        if ((table != nullptr) && (table->GetInstanceProcAddr != nullptr))
+        {
+            result = table->GetInstanceProcAddr(instance, name, function);
+        }
 
-                // If we reach the end and don't support it, return the next layer/loader function
-                if (result == XR_ERROR_FUNCTION_UNSUPPORTED)
-                {
-                    result = info.next_gipa(instance, name, function);
-                }
-        */
+        // If we reach the end and don't support it, return the next layer/loader function
+        if (result == XR_ERROR_FUNCTION_UNSUPPORTED)
+        {
+            result = info.next_gipa(instance, name, function);
+        }
     }
     return result;
 }
 #endif // ENABLE_OPENXR_SUPPORT
 
 GFXRECON_END_NAMESPACE(gfxrecon)
+
+#ifdef ENABLE_OPENXR_SUPPORT
+const XrApiLayerProperties kOpenXrLayerProps = {
+    XR_TYPE_API_LAYER_PROPERTIES,
+    nullptr,
+    GFXRECON_PROJECT_OPENXR_LAYER_NAME,
+    XR_CURRENT_API_VERSION,
+    VK_MAKE_VERSION(GFXRECON_PROJECT_VERSION_MAJOR, GFXRECON_PROJECT_VERSION_MINOR, GFXRECON_PROJECT_VERSION_PATCH),
+    GFXRECON_PROJECT_DESCRIPTION
+    " Version " GFXRECON_VERSION_STR(GFXRECON_PROJECT_VERSION_MAJOR) "." GFXRECON_VERSION_STR(
+        GFXRECON_PROJECT_VERSION_MINOR) "." GFXRECON_VERSION_STR(GFXRECON_PROJECT_VERSION_PATCH)
+        GFXRECON_PROJECT_VERSION_DESIGNATION
+};
+#endif // ENABLE_OPENXR_SUPPORT
 
 // To be safe, we extern "C" these items to remove name mangling for all the items we want to export for Android and old
 // loaders to find.
