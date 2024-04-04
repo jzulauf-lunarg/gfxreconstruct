@@ -138,7 +138,7 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         self.newline()
         write('template <typename T>', file=self.outFile)
         write(
-            'T* MakeUnwrapStructs(const T* values, size_t len, HandleUnwrapMemory* unwrap_memory)',
+            'T* MakeUnwrapVulkanStructs(const T* values, size_t len, HandleUnwrapMemory* unwrap_memory)',
             file=self.outFile
         )
         write('{', file=self.outFile)
@@ -164,7 +164,7 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         self.newline()
         write('template <typename T>', file=self.outFile)
         write(
-            'const T* UnwrapStructPtrHandles(const T* value, HandleUnwrapMemory* unwrap_memory)',
+            'const T* UnwrapVulkanStructPtrHandles(const T* value, HandleUnwrapMemory* unwrap_memory)',
             file=self.outFile
         )
         write('{', file=self.outFile)
@@ -173,11 +173,11 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         write('    if (value != nullptr)', file=self.outFile)
         write('    {', file=self.outFile)
         write(
-            '        unwrapped_struct = MakeUnwrapStructs(value, 1, unwrap_memory);',
+            '        unwrapped_struct = MakeUnwrapVulkanStructs(value, 1, unwrap_memory);',
             file=self.outFile
         )
         write(
-            '        UnwrapStructHandles(unwrapped_struct, unwrap_memory);',
+            '        UnwrapVulkanStructHandles(unwrapped_struct, unwrap_memory);',
             file=self.outFile
         )
         write('    }', file=self.outFile)
@@ -187,21 +187,21 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
         self.newline()
         write('template <typename T>', file=self.outFile)
         write(
-            'const T* UnwrapStructArrayHandles(const T* values, size_t len, HandleUnwrapMemory* unwrap_memory)',
+            'const T* UnwrapVulkanStructArrayHandles(const T* values, size_t len, HandleUnwrapMemory* unwrap_memory)',
             file=self.outFile
         )
         write('{', file=self.outFile)
         write('    if ((values != nullptr) && (len > 0))', file=self.outFile)
         write('    {', file=self.outFile)
         write(
-            '        auto unwrapped_structs = MakeUnwrapStructs(values, len, unwrap_memory);',
+            '        auto unwrapped_structs = MakeUnwrapVulkanStructs(values, len, unwrap_memory);',
             file=self.outFile
         )
         self.newline()
         write('        for (size_t i = 0; i < len; ++i)', file=self.outFile)
         write('        {', file=self.outFile)
         write(
-            '            UnwrapStructHandles(&unwrapped_structs[i], unwrap_memory);',
+            '            UnwrapVulkanStructHandles(&unwrapped_structs[i], unwrap_memory);',
             file=self.outFile
         )
         write('        }', file=self.outFile)
@@ -259,7 +259,7 @@ class VulkanStructHandleWrappersHeaderGenerator(BaseGenerator):
                 or (struct in self.GENERIC_HANDLE_STRUCTS)
             ):
                 body = '\n'
-                body += 'void UnwrapStructHandles({}* value, HandleUnwrapMemory* unwrap_memory);'.format(
+                body += 'void UnwrapVulkanStructHandles({}* value, HandleUnwrapMemory* unwrap_memory);'.format(
                     struct
                 )
                 write(body, file=self.outFile)

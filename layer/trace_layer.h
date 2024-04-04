@@ -73,14 +73,13 @@ XRAPI_ATTR XrResult XRAPI_CALL OpenXrEnumerateInstanceExtensionProperties(const 
 XRAPI_ATTR XrResult XRAPI_CALL OpenXrEnumerateApiLayerProperties(uint32_t              propertyCapacityInput,
                                                                  uint32_t*             propertyCountOutput,
                                                                  XrApiLayerProperties* properties);
-XRAPI_ATTR XrResult XRAPI_CALL OpenXrCreateApiLayerInstance(const XrInstanceCreateInfo* info,
-                                                            const XrApiLayerCreateInfo* apiLayerInfo,
-                                                            XrInstance*                 instance);
 XRAPI_ATTR XrResult XRAPI_CALL OpenXrGetInstanceProcAddr(XrInstance          instance,
                                                          const char*         name,
                                                          PFN_xrVoidFunction* function);
+XRAPI_ATTR XrResult XRAPI_CALL dispatch_OpenXrCreateApiLayerInstance(const XrInstanceCreateInfo* info,
+                                                                     const XrApiLayerCreateInfo* apiLayerInfo,
+                                                                     XrInstance*                 instance);
 #endif // ENABLE_OPENXR_SUPPORT
-
 GFXRECON_END_NAMESPACE(gfxrecon)
 
 #endif // GFXRECON_TRACE_LAYER_H

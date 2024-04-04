@@ -34,9 +34,9 @@ GFXRECON_BEGIN_NAMESPACE(encode)
 GFXRECON_BEGIN_NAMESPACE(vulkan_wrappers)
 
 // Vulkan structures that require special processing that the code generator cannot infer from the XML registry.
-void UnwrapStructHandles(VkDescriptorType type, VkDescriptorImageInfo* value, HandleUnwrapMemory* unwrap_memory);
+void UnwrapVulkanStructHandles(VkDescriptorType type, VkDescriptorImageInfo* value, HandleUnwrapMemory* unwrap_memory);
 
-void UnwrapStructHandles(VkWriteDescriptorSet* value, HandleUnwrapMemory* unwrap_memory);
+void UnwrapVulkanStructHandles(VkWriteDescriptorSet* value, HandleUnwrapMemory* unwrap_memory);
 
 GFXRECON_END_NAMESPACE(vulkan_wrappers)
 GFXRECON_END_NAMESPACE(encode)

@@ -215,6 +215,7 @@ class VulkanApiCallEncodersBodyGenerator(BaseGenerator):
                 object_name = 'physical_device'
                 wrapper_prefix = self.get_wrapper_prefix_from_type()
                 call_setup_expr.append("auto device_wrapper = vulkan_wrappers::GetWrapper<{}::DeviceWrapper>({});".format(wrapper_prefix, values[0].name))
+                call_setup_expr.append("auto device_wrapper = GetVulkanWrapper<{}::DeviceWrapper>({});".format(wrapper_prefix, values[0].name))
                 call_setup_expr.append("auto physical_device = device_wrapper->physical_device->handle;")
         else:
             dispatchfunc = 'vulkan_wrappers::GetDeviceTable'
