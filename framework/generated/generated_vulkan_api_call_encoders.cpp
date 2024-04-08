@@ -16496,7 +16496,6 @@ VKAPI_ATTR VkResult VKAPI_CALL SetDebugUtilsObjectNameEXT(
     const VkDebugUtilsObjectNameInfoEXT* pNameInfo_unwrapped = vulkan_wrappers::UnwrapStructPtrHandles(pNameInfo, handle_unwrap_memory);
 
     auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
     auto physical_device = device_wrapper->physical_device->handle;
     VkResult result = vulkan_wrappers::GetInstanceTable(physical_device)->SetDebugUtilsObjectNameEXT(device, pNameInfo_unwrapped);
 
@@ -16538,7 +16537,6 @@ VKAPI_ATTR VkResult VKAPI_CALL SetDebugUtilsObjectTagEXT(
     const VkDebugUtilsObjectTagInfoEXT* pTagInfo_unwrapped = vulkan_wrappers::UnwrapStructPtrHandles(pTagInfo, handle_unwrap_memory);
 
     auto device_wrapper = vulkan_wrappers::GetWrapper<vulkan_wrappers::DeviceWrapper>(device);
-    auto device_wrapper = GetVulkanWrapper<vulkan_wrappers::DeviceWrapper>(device);
     auto physical_device = device_wrapper->physical_device->handle;
     VkResult result = vulkan_wrappers::GetInstanceTable(physical_device)->SetDebugUtilsObjectTagEXT(device, pTagInfo_unwrapped);
 

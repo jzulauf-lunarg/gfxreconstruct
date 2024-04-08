@@ -271,49 +271,6 @@ VKAPI_ATTR VkResult VKAPI_CALL dispatch_VulkanCreateDevice(VkPhysicalDevice     
     return result;
 }
 
-#ifdef ENABLE_OPENXR_SUPPORT
-
-struct OpenXrInstanceInfo
-{
-    void*                     loader_instance;
-    PFN_xrGetInstanceProcAddr next_gipa;
-    std::vector<std::string>  enabled_extensions;
-};
-static std::unordered_map<XrInstance, OpenXrInstanceInfo> xr_instance_infos;
-
-XRAPI_ATTR XrResult XRAPI_CALL dispatch_OpenXrCreateApiLayerInstance(const XrInstanceCreateInfo* info,
-                                                                     const XrApiLayerCreateInfo* apiLayerInfo,
-                                                                     XrInstance*                 instance)
-{
-    if (info == nullptr || apiLayerInfo == nullptr || apiLayerInfo->nextInfo == nullptr || instance == nullptr)
-    {
-        return XR_ERROR_VALIDATION_FAILURE;
-    }
-    XrApiLayerNextInfo* next_info = apiLayerInfo->nextInfo;
-    if (strcmp(next_info->layerName, GFXRECON_PROJECT_OPENXR_LAYER_NAME))
-    {
-        return XR_ERROR_NAME_INVALID;
-    }
-    XrApiLayerCreateInfo next_layer_create_info;
-    assert(apiLayerInfo->structSize == sizeof(XrApiLayerCreateInfo));
-    memcpy(&next_layer_create_info, apiLayerInfo, sizeof(XrApiLayerCreateInfo));
-    next_layer_create_info.nextInfo = next_info->next;
-    XrResult result                 = next_info->nextCreateApiLayerInstance(info, &next_layer_create_info, instance);
-    if (result == XR_SUCCESS)
-    {
-        OpenXrInstanceInfo cur_instance_info;
-        cur_instance_info.loader_instance = apiLayerInfo->loaderInstance;
-        cur_instance_info.next_gipa       = next_info->nextGetInstanceProcAddr;
-        for (uint32_t iii = 0; iii < info->enabledExtensionCount; ++iii)
-        {
-            cur_instance_info.enabled_extensions.push_back(info->enabledExtensionNames[iii]);
-        }
-        gfxrecon::xr_instance_infos[*instance] = std::move(cur_instance_info);
-    }
-    return result;
-}
-#endif // ENABLE_OPENXR_SUPPORT
-
 VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL VulkanGetInstanceProcAddr(VkInstance instance, const char* pName)
 {
     PFN_vkVoidFunction result = nullptr;
@@ -609,6 +566,63 @@ GFXRECON_END_NAMESPACE(vulkan_entry)
 
 #ifdef ENABLE_OPENXR_SUPPORT
 
+struct OpenXrInstanceInfo
+{
+    void*                     loader_instance;
+    PFN_xrGetInstanceProcAddr next_gipa;
+    std::vector<std::string>  enabled_extensions;
+};
+static std::unordered_map<XrInstance, OpenXrInstanceInfo> xr_instance_infos;
+
+XRAPI_ATTR XrResult XRAPI_CALL dispatch_OpenXrCreateApiLayerInstance(const XrInstanceCreateInfo* info,
+                                                                     const XrApiLayerCreateInfo* apiLayerInfo,
+                                                                     XrInstance*                 instance)
+{
+    if (info == nullptr || apiLayerInfo == nullptr || apiLayerInfo->nextInfo == nullptr || instance == nullptr)
+    {
+        return XR_ERROR_VALIDATION_FAILURE;
+    }
+    XrApiLayerNextInfo* next_info = apiLayerInfo->nextInfo;
+    if (strcmp(next_info->layerName, GFXRECON_PROJECT_OPENXR_LAYER_NAME))
+    {
+        return XR_ERROR_NAME_INVALID;
+    }
+    XrApiLayerCreateInfo next_layer_create_info;
+    assert(apiLayerInfo->structSize == sizeof(XrApiLayerCreateInfo));
+    memcpy(&next_layer_create_info, apiLayerInfo, sizeof(XrApiLayerCreateInfo));
+    next_layer_create_info.nextInfo = next_info->next;
+    XrResult result                 = next_info->nextCreateApiLayerInstance(info, &next_layer_create_info, instance);
+    if (result == XR_SUCCESS)
+    {
+        OpenXrInstanceInfo cur_instance_info;
+        cur_instance_info.loader_instance = apiLayerInfo->loaderInstance;
+        cur_instance_info.next_gipa       = next_info->nextGetInstanceProcAddr;
+        for (uint32_t iii = 0; iii < info->enabledExtensionCount; ++iii)
+        {
+            cur_instance_info.enabled_extensions.push_back(info->enabledExtensionNames[iii]);
+        }
+        gfxrecon::xr_instance_infos[*instance] = std::move(cur_instance_info);
+    }
+    return result;
+}
+#endif // ENABLE_OPENXR_SUPPORT
+
+#ifdef ENABLE_OPENXR_SUPPORT
+const XrApiLayerProperties kOpenXrLayerProps = {
+    XR_TYPE_API_LAYER_PROPERTIES,
+    nullptr,
+    GFXRECON_PROJECT_OPENXR_LAYER_NAME,
+    XR_CURRENT_API_VERSION,
+    VK_MAKE_VERSION(GFXRECON_PROJECT_VERSION_MAJOR, GFXRECON_PROJECT_VERSION_MINOR, GFXRECON_PROJECT_VERSION_PATCH),
+    GFXRECON_PROJECT_DESCRIPTION
+    " Version " GFXRECON_VERSION_STR(GFXRECON_PROJECT_VERSION_MAJOR) "." GFXRECON_VERSION_STR(
+        GFXRECON_PROJECT_VERSION_MINOR) "." GFXRECON_VERSION_STR(GFXRECON_PROJECT_VERSION_PATCH)
+        GFXRECON_PROJECT_VERSION_DESIGNATION
+};
+#endif // ENABLE_OPENXR_SUPPORT
+
+#ifdef ENABLE_OPENXR_SUPPORT
+
 XRAPI_ATTR XrResult XRAPI_CALL OpenXrEnumerateInstanceExtensionProperties(const char*            layerName,
                                                                           uint32_t               propertyCapacityInput,
                                                                           uint32_t*              propertyCountOutput,
@@ -686,7 +700,7 @@ XRAPI_ATTR XrResult XRAPI_CALL OpenXrGetInstanceProcAddr(XrInstance          ins
     {
         const OpenXrInstanceInfo& info = xr_instance_infos[instance];
 
-        auto table = encode::GetOpenXrInstanceTable(instance);
+        auto table = encode::openxr_wrappers::GetInstanceTable(instance);
         if ((table != nullptr) && (table->GetInstanceProcAddr != nullptr))
         {
             result = table->GetInstanceProcAddr(instance, name, function);
@@ -703,20 +717,6 @@ XRAPI_ATTR XrResult XRAPI_CALL OpenXrGetInstanceProcAddr(XrInstance          ins
 #endif // ENABLE_OPENXR_SUPPORT
 
 GFXRECON_END_NAMESPACE(gfxrecon)
-
-#ifdef ENABLE_OPENXR_SUPPORT
-const XrApiLayerProperties kOpenXrLayerProps = {
-    XR_TYPE_API_LAYER_PROPERTIES,
-    nullptr,
-    GFXRECON_PROJECT_OPENXR_LAYER_NAME,
-    XR_CURRENT_API_VERSION,
-    VK_MAKE_VERSION(GFXRECON_PROJECT_VERSION_MAJOR, GFXRECON_PROJECT_VERSION_MINOR, GFXRECON_PROJECT_VERSION_PATCH),
-    GFXRECON_PROJECT_DESCRIPTION
-    " Version " GFXRECON_VERSION_STR(GFXRECON_PROJECT_VERSION_MAJOR) "." GFXRECON_VERSION_STR(
-        GFXRECON_PROJECT_VERSION_MINOR) "." GFXRECON_VERSION_STR(GFXRECON_PROJECT_VERSION_PATCH)
-        GFXRECON_PROJECT_VERSION_DESIGNATION
-};
-#endif // ENABLE_OPENXR_SUPPORT
 
 // To be safe, we extern "C" these items to remove name mangling for all the items we want to export for Android and old
 // loaders to find.

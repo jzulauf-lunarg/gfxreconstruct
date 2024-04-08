@@ -94,9 +94,9 @@ class ParameterEncoder
     void EncodeVulkanHandleValue(typename Wrapper::HandleType value)                                                  { EncodeHandleIdValue(vulkan_wrappers::GetWrappedId<Wrapper>(value)); }
 #if ENABLE_OPENXR_SUPPORT
     template<typename Wrapper>
-    void EncodeOpenXrHandleValue(typename Wrapper::HandleType value)                                                  { EncodeHandleIdValue(GetOpenXrWrappedId<Wrapper>(value)); }
+    void EncodeOpenXrHandleValue(typename Wrapper::HandleType value)                                                  { EncodeHandleIdValue(openxr_wrappers::GetWrappedId<Wrapper>(value)); }
     template<typename Wrapper>
-    void EncodeOpenXrAtomValue(typename Wrapper::HandleType value)                                                    { EncodeHandleIdValue(GetOpenXrAtomWrappedId<Wrapper>(value)); }
+    void EncodeOpenXrAtomValue(typename Wrapper::HandleType value)                                                    { EncodeHandleIdValue(openxr_wrappers::GetAtomWrappedId<Wrapper>(value)); }
 #endif // ENABLE_OPENXR_SUPPORT
     template<typename T>
     void EncodeEnumValue(T value)                                                                                     { EncodeValue(static_cast<format::EnumEncodeType>(value)); }
