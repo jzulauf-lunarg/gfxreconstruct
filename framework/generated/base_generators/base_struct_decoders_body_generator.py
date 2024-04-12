@@ -62,6 +62,11 @@ class BaseStructDecodersBodyGenerator():
                     value.name
                 )
                 body += '    value->pNext = wrapper->pNext ? wrapper->pNext->GetPointer() : nullptr;\n'
+            elif 'next' == value.name and value.base_type == 'void':
+                body += '    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->{}));\n'.format(
+                    value.name
+                )
+                body += '    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;\n'
             else:
                 body += BaseStructDecodersBodyGenerator.make_decode_invocation(
                     self, name, value
@@ -81,6 +86,7 @@ class BaseStructDecodersBodyGenerator():
         is_funcp = False
         is_handle = False
         is_enum = False
+        is_atom = False
 
         type_name = self.make_invocation_type_name(value.base_type)
 
@@ -94,6 +100,8 @@ class BaseStructDecodersBodyGenerator():
             is_funcp = True
         elif self.is_handle(value.base_type):
             is_handle = True
+        elif self.is_atom(value.base_type):
+            is_atom = True
         elif type_name == 'Enum':
             is_enum = True
 
@@ -131,7 +139,7 @@ class BaseStructDecodersBodyGenerator():
                         arraylen=value.array_capacity
                     )
 
-                if is_struct or is_string or is_handle or (
+                if is_struct or is_string or is_handle or is_atom or (
                     is_class and value.pointer_count > 1
                 ):
                     body += '    bytes_read += wrapper->{}{}Decode({});\n'.format(
@@ -152,7 +160,7 @@ class BaseStructDecodersBodyGenerator():
                     )
 
                 if not is_static_array:
-                    if is_handle or is_class:
+                    if is_handle or is_atom or is_class:
                         # Point the real struct's member pointer to the handle pointer decoder's handle memory.
                         body += '    value->{} = nullptr;\n'.format(value.name)
                     else:
@@ -190,11 +198,15 @@ class BaseStructDecodersBodyGenerator():
                     buffer_args, value.name
                 )
                 body += '    value->{} = nullptr;\n'.format(value.name)
-            elif is_handle:
+            elif is_handle or is_atom:
                 body += '    bytes_read += ValueDecoder::DecodeHandleIdValue({}, &(wrapper->{}));\n'.format(
                     buffer_args, value.name
                 )
-                body += '    value->{} = VK_NULL_HANDLE;\n'.format(value.name)
+                type_prefix = self.get_prefix_from_type(value.name)
+                if type_prefix == "Vulkan":
+                    body += '    value->{} = VK_NULL_HANDLE;\n'.format(value.name)
+                elif type_prefix == "OpenXr":
+                    body += '    value->{} = XR_NULL_HANDLE;\n'.format(value.name)
             elif self.is_generic_struct_handle_value(name, value.name):
                 body += '    bytes_read += ValueDecoder::DecodeUInt64Value({}, &(wrapper->{}));\n'.format(
                     buffer_args, value.name
