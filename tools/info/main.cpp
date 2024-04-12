@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2020 LunarG, Inc.
+** Copyright (c) 2020-2024 LunarG, Inc.
 ** Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All rights reserved.
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
@@ -30,7 +30,10 @@
 #include "decode/file_processor.h"
 #include "format/format.h"
 #include "format/format_util.h"
-#include "generated/generated_vulkan_consumer.h"
+
+#ifdef ENABLE_OPENXR_SUPPORT
+#include "generated/generated_openxr_decoder.h"
+#endif
 #include "generated/generated_vulkan_decoder.h"
 #include "decode/info_decoder.h"
 #include "decode/info_consumer.h"
