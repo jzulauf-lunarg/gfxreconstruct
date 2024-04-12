@@ -776,6 +776,9 @@ class BaseGenerator(OutputGenerator):
             return True
         return False
 
+    def is_atom(self, base_type):
+        return False
+
     def has_basetype(self, base_type):
         if base_type in self.base_types and self.base_types[base_type] is not None:
             return True
