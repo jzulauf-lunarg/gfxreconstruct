@@ -106,6 +106,20 @@ include("Lint")
 include("Test")
 include("FindVulkanVersion")
 
+set(OPENXR_SUPPORT_ENABLED FALSE)
+
+option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." OFF)
+if (GFXRECON_ENABLE_OPENXR)
+    include("FindOpenXRVersion")
+
+    if ((NOT XR_VERSION_MAJOR STREQUAL "") AND (NOT XR_VERSION_MINOR STREQUAL ""))
+        set(OPENXR_SUPPORT_ENABLED TRUE)
+    else()
+        message(WARNING "Failed to find OpenXR headers for support.  Continuing with it disabled!")
+    endif()
+
+endif()
+
 # Apply misc build directives to the given target
 macro(common_build_directives TARGET)
     target_code_style_build_directives(${TARGET})
@@ -265,6 +279,7 @@ target_compile_definitions(windows_specific INTERFACE
     WIN32_LEAN_AND_MEAN
     NOMINMAX
     VK_USE_PLATFORM_WIN32_KHR
+    XR_USE_PLATFORM_WIN32
     $<$<BOOL:${HEADLESS}>:VK_USE_PLATFORM_HEADLESS>
     $<$<BOOL:${BUILD_LAUNCHER_AND_INTERCEPTOR}>:"GFXR_INTERCEPTOR_PATH=\"$<TARGET_FILE:gfxrecon_interceptor>\"">
     $<$<BOOL:${D3D12_SUPPORT}>:"GFXR_D3D12_CAPTURE_PATH=\"$<TARGET_FILE:d3d12_capture>\"">
@@ -274,10 +289,10 @@ target_compile_definitions(windows_specific INTERFACE
 
 add_library(linux_specific INTERFACE)
 target_compile_definitions(linux_specific INTERFACE _FILE_OFFSET_BITS=64 PAGE_GUARD_ENABLE_UCONTEXT_WRITE_DETECTION
-    $<$<BOOL:${X11_FOUND}>:VK_USE_PLATFORM_XLIB_KHR>
+    $<$<BOOL:${X11_FOUND}>:VK_USE_PLATFORM_XLIB_KHR XR_USE_PLATFORM_XLIB>
     $<$<BOOL:${X11_Xrandr_FOUND}>:VK_USE_PLATFORM_XLIB_XRANDR_EXT>
-    $<$<BOOL:${XCB_FOUND}>:VK_USE_PLATFORM_XCB_KHR>
-    $<$<BOOL:${WAYLAND_FOUND}>:VK_USE_PLATFORM_WAYLAND_KHR>
+    $<$<BOOL:${XCB_FOUND}>:VK_USE_PLATFORM_XCB_KHR XR_USE_PLATFORM_XCB>
+    $<$<BOOL:${WAYLAND_FOUND}>:VK_USE_PLATFORM_WAYLAND_KHR XR_USE_PLATFORM_WAYLAND>
     $<$<BOOL:${BUILD_WSI_DISPLAY_SUPPORT}>:VK_USE_PLATFORM_DISPLAY_KHR>
     $<$<BOOL:${HEADLESS}>:VK_USE_PLATFORM_HEADLESS>)
 
@@ -307,6 +322,13 @@ endif()
 add_library(vulkan_registry INTERFACE)
 target_include_directories(vulkan_registry INTERFACE ${CMAKE_SOURCE_DIR}/external/Vulkan-Headers/include)
 target_compile_definitions(vulkan_registry INTERFACE VK_NO_PROTOTYPES VK_ENABLE_BETA_EXTENSIONS)
+
+add_library(openxr_headers INTERFACE)
+if (OPENXR_SUPPORT_ENABLED)
+    target_include_directories(openxr_headers INTERFACE ${CMAKE_SOURCE_DIR}/external/OpenXR-SDK/include)
+    target_compile_definitions(openxr_headers INTERFACE XR_NO_PROTOTYPES ENABLE_OPENXR_SUPPORT=1)
+endif()
+
 
 add_library(vulkan_memory_allocator INTERFACE)
 target_compile_options(vulkan_memory_allocator INTERFACE

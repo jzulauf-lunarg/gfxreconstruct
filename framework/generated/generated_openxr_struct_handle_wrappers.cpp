@@ -27,10 +27,13 @@
 **
 */
 
+#ifdef ENABLE_OPENXR_SUPPORT
+
 #include "generated/generated_openxr_struct_handle_wrappers.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
+GFXRECON_BEGIN_NAMESPACE(openxr_wrappers)
 
 void UnwrapStructHandles(XrActionSpaceCreateInfo* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -43,14 +46,10 @@ void UnwrapStructHandles(XrCompositionLayerBaseHeader* value, HandleUnwrapMemory
 {
     if (value != nullptr)
     {
-    }
-}
-
-void UnwrapStructHandles(XrFrameEndInfo* value, HandleUnwrapMemory* unwrap_memory)
-{
-    if (value != nullptr)
-    {
-        value->layers = UnwrapStructArrayHandles(value->layers, value->layerCount, unwrap_memory);
+        if (value->next != nullptr)
+        {
+            value->next = UnwrapNextStructHandles(value->next, unwrap_memory);
+        }
     }
 }
 
@@ -177,8 +176,6 @@ void UnwrapStructHandles(XrCompositionLayerCubeKHR* value, HandleUnwrapMemory* u
     {
     }
 }
-#ifdef XR_USE_PLATFORM_ANDROID
-#endif /* XR_USE_PLATFORM_ANDROID */
 
 void UnwrapStructHandles(XrCompositionLayerDepthInfoKHR* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -187,8 +184,6 @@ void UnwrapStructHandles(XrCompositionLayerDepthInfoKHR* value, HandleUnwrapMemo
         UnwrapStructHandles(&value->subImage, unwrap_memory);
     }
 }
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-#endif /* XR_USE_GRAPHICS_API_VULKAN */
 
 void UnwrapStructHandles(XrCompositionLayerCylinderKHR* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -205,16 +200,20 @@ void UnwrapStructHandles(XrCompositionLayerEquirectKHR* value, HandleUnwrapMemor
         UnwrapStructHandles(&value->subImage, unwrap_memory);
     }
 }
-#ifdef XR_USE_GRAPHICS_API_OPENGL
-#endif /* XR_USE_GRAPHICS_API_OPENGL */
-#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
-#endif /* XR_USE_GRAPHICS_API_OPENGL_ES */
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-#endif /* XR_USE_GRAPHICS_API_VULKAN */
-#ifdef XR_USE_GRAPHICS_API_D3D11
-#endif /* XR_USE_GRAPHICS_API_D3D11 */
-#ifdef XR_USE_GRAPHICS_API_D3D12
-#endif /* XR_USE_GRAPHICS_API_D3D12 */
+
+void UnwrapStructHandles(XrGraphicsBindingVulkanKHR* value, HandleUnwrapMemory* unwrap_memory)
+{
+    if (value != nullptr)
+    {
+    }
+}
+
+void UnwrapStructHandles(XrSwapchainImageVulkanKHR* value, HandleUnwrapMemory* unwrap_memory)
+{
+    if (value != nullptr)
+    {
+    }
+}
 
 void UnwrapStructHandles(XrEventDataVisibilityMaskChangedKHR* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -222,10 +221,13 @@ void UnwrapStructHandles(XrEventDataVisibilityMaskChangedKHR* value, HandleUnwra
     {
     }
 }
-#ifdef XR_USE_PLATFORM_ANDROID
-#endif /* XR_USE_PLATFORM_ANDROID */
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-#endif /* XR_USE_GRAPHICS_API_VULKAN */
+
+void UnwrapStructHandles(XrVulkanGraphicsDeviceGetInfoKHR* value, HandleUnwrapMemory* unwrap_memory)
+{
+    if (value != nullptr)
+    {
+    }
+}
 
 void UnwrapStructHandles(XrCompositionLayerEquirect2KHR* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -248,8 +250,6 @@ void UnwrapStructHandles(XrSpatialAnchorSpaceCreateInfoMSFT* value, HandleUnwrap
     {
     }
 }
-#ifdef XR_USE_PLATFORM_EGL
-#endif /* XR_USE_PLATFORM_EGL */
 
 void UnwrapStructHandles(XrSpatialGraphStaticNodeBindingCreateInfoMSFT* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -265,14 +265,6 @@ void UnwrapStructHandles(XrHandJointsLocateInfoEXT* value, HandleUnwrapMemory* u
     }
 }
 
-void UnwrapStructHandles(XrSecondaryViewConfigurationLayerInfoMSFT* value, HandleUnwrapMemory* unwrap_memory)
-{
-    if (value != nullptr)
-    {
-        value->layers = UnwrapStructArrayHandles(value->layers, value->layerCount, unwrap_memory);
-    }
-}
-
 void UnwrapStructHandles(XrSecondaryViewConfigurationFrameEndInfoMSFT* value, HandleUnwrapMemory* unwrap_memory)
 {
     if (value != nullptr)
@@ -280,10 +272,6 @@ void UnwrapStructHandles(XrSecondaryViewConfigurationFrameEndInfoMSFT* value, Ha
         value->viewConfigurationLayersInfo = UnwrapStructArrayHandles(value->viewConfigurationLayersInfo, value->viewConfigurationCount, unwrap_memory);
     }
 }
-#ifdef XR_USE_PLATFORM_WIN32
-#endif /* XR_USE_PLATFORM_WIN32 */
-#ifdef XR_USE_PLATFORM_ANDROID
-#endif /* XR_USE_PLATFORM_ANDROID */
 
 void UnwrapStructHandles(XrBodyJointsLocateInfoFB* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -388,10 +376,12 @@ void UnwrapStructHandles(XrPassthroughStyleFB* value, HandleUnwrapMemory* unwrap
 {
     if (value != nullptr)
     {
+        if (value->next != nullptr)
+        {
+            value->next = UnwrapNextStructHandles(value->next, unwrap_memory);
+        }
     }
 }
-#ifdef XR_USE_PLATFORM_ML
-#endif /* XR_USE_PLATFORM_ML */
 
 void UnwrapStructHandles(XrMarkerSpaceCreateInfoML* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -463,14 +453,13 @@ void UnwrapStructHandles(XrEventDataSpaceEraseCompleteFB* value, HandleUnwrapMem
     {
     }
 }
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-#endif /* XR_USE_GRAPHICS_API_VULKAN */
-#ifdef XR_USE_PLATFORM_ANDROID
-#endif /* XR_USE_PLATFORM_ANDROID */
-#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
-#endif /* XR_USE_GRAPHICS_API_OPENGL_ES */
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-#endif /* XR_USE_GRAPHICS_API_VULKAN */
+
+void UnwrapStructHandles(XrSwapchainImageFoveationVulkanFB* value, HandleUnwrapMemory* unwrap_memory)
+{
+    if (value != nullptr)
+    {
+    }
+}
 
 void UnwrapStructHandles(XrSpaceShareInfoFB* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -550,8 +539,6 @@ void UnwrapStructHandles(XrEventDataVirtualKeyboardHiddenMETA* value, HandleUnwr
     {
     }
 }
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-#endif /* XR_USE_GRAPHICS_API_VULKAN */
 
 void UnwrapStructHandles(XrSpaceListSaveInfoFB* value, HandleUnwrapMemory* unwrap_memory)
 {
@@ -593,6 +580,10 @@ void UnwrapStructHandles(XrCompositionLayerPassthroughHTC* value, HandleUnwrapMe
 {
     if (value != nullptr)
     {
+        if (value->next != nullptr)
+        {
+            value->next = UnwrapNextStructHandles(value->next, unwrap_memory);
+        }
     }
 }
 
@@ -647,7 +638,7 @@ void UnwrapStructHandles(XrEventDataUserPresenceChangedEXT* value, HandleUnwrapM
     }
 }
 
-XrBaseInStructure* CopyPNextStruct(const XrBaseInStructure* base, HandleUnwrapMemory* unwrap_memory)
+XrBaseInStructure* CopyNextStruct(const XrBaseInStructure* base, HandleUnwrapMemory* unwrap_memory)
 {
     assert(base != nullptr);
 
@@ -655,7 +646,7 @@ XrBaseInStructure* CopyPNextStruct(const XrBaseInStructure* base, HandleUnwrapMe
     switch (base->type)
     {
     default:
-        GFXRECON_LOG_WARNING("Failed to copy entire pNext chain when unwrapping handles due to unrecognized type %d", base->type);
+        GFXRECON_LOG_WARNING("Failed to copy entire next chain when unwrapping handles due to unrecognized type %d", base->type);
         break;
     case XR_TYPE_SPACE_VELOCITY:
         copy = reinterpret_cast<XrBaseInStructure*>(MakeUnwrapStructs(reinterpret_cast<const XrSpaceVelocity*>(base), 1, unwrap_memory));
@@ -974,7 +965,7 @@ XrBaseInStructure* CopyPNextStruct(const XrBaseInStructure* base, HandleUnwrapMe
     return copy;
 }
 
-const void* UnwrapPNextStructHandles(const void* value, HandleUnwrapMemory* unwrap_memory)
+const void* UnwrapNextStructHandles(const void* value, HandleUnwrapMemory* unwrap_memory)
 {
     if (value != nullptr)
     {
@@ -985,19 +976,23 @@ const void* UnwrapPNextStructHandles(const void* value, HandleUnwrapMemory* unwr
         default:
         {
             // This structure does not contain handles, but may point to a structure that does.
-            XrBaseInStructure* copy = CopyPNextStruct(base, unwrap_memory);
+            XrBaseInStructure* copy = CopyNextStruct(base, unwrap_memory);
             if (copy != nullptr)
             {
-                copy->pNext = reinterpret_cast<const XrBaseInStructure*>(UnwrapPNextStructHandles(base->pNext, unwrap_memory));
+                copy->next = reinterpret_cast<const XrBaseInStructure*>(UnwrapNextStructHandles(base->next, unwrap_memory));
             }
             return copy;
         }
         case XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR:
             return UnwrapStructPtrHandles(reinterpret_cast<const XrCompositionLayerDepthInfoKHR*>(base), unwrap_memory);
+        case XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR:
+            return UnwrapStructPtrHandles(reinterpret_cast<const XrGraphicsBindingVulkanKHR*>(base), unwrap_memory);
         case XR_TYPE_SECONDARY_VIEW_CONFIGURATION_FRAME_END_INFO_MSFT:
             return UnwrapStructPtrHandles(reinterpret_cast<const XrSecondaryViewConfigurationFrameEndInfoMSFT*>(base), unwrap_memory);
         case XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB:
             return UnwrapStructPtrHandles(reinterpret_cast<const XrCompositionLayerPassthroughFB*>(base), unwrap_memory);
+        case XR_TYPE_SWAPCHAIN_IMAGE_FOVEATION_VULKAN_FB:
+            return UnwrapStructPtrHandles(reinterpret_cast<const XrSwapchainImageFoveationVulkanFB*>(base), unwrap_memory);
         case XR_TYPE_COMPOSITION_LAYER_SPACE_WARP_INFO_FB:
             return UnwrapStructPtrHandles(reinterpret_cast<const XrCompositionLayerSpaceWarpInfoFB*>(base), unwrap_memory);
         case XR_TYPE_PASSTHROUGH_COLOR_MAP_LUT_META:
@@ -1014,5 +1009,8 @@ const void* UnwrapPNextStructHandles(const void* value, HandleUnwrapMemory* unwr
     return nullptr;
 }
 
+GFXRECON_END_NAMESPACE(openxr_wrappers)
 GFXRECON_END_NAMESPACE(encode)
 GFXRECON_END_NAMESPACE(gfxrecon)
+
+#endif // ENABLE_OPENXR_SUPPORT

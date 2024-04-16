@@ -73,10 +73,21 @@ class OpenXrLayerFuncTableGenerator(BaseGenerator):
         )
 
         # API Calls that the trace layer should ignore
-        self.APICALL_BLACKLIST = []
+        self.APICALL_BLACKLIST += [
+            'xrNegotiateLoaderRuntimeInterface',
+            'xrNegotiateLoaderApiLayerInterface',
+            'xrInitializeLoaderKHR',
+            'xrCreateInstance',
+            'xrCreateApiLayerInstance',
+        ]
 
         # These functions are provided directly by the layer, and are not encoded
-        self.LAYER_FUNCTIONS = []
+        self.LAYER_FUNCTIONS = [
+            'xrEnumerateInstanceExtensionProperties',
+            'xrEnumerateApiLayerProperties',
+            'xrCreateApiLayerInstance',
+            'xrGetInstanceProcAddr',
+        ]
 
     def beginFile(self, gen_opts):
         """Method override."""
@@ -100,7 +111,7 @@ class OpenXrLayerFuncTableGenerator(BaseGenerator):
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         self.newline()
         write(
-            'const std::unordered_map<std::string, PFN_xrVoidFunction> func_table = {',
+            'const std::unordered_map<std::string, PFN_xrVoidFunction> openxr_func_table = {',
             file=self.outFile
         )
 
@@ -124,11 +135,11 @@ class OpenXrLayerFuncTableGenerator(BaseGenerator):
         for cmd in self.get_filtered_cmd_names():
             align = 100 - len(cmd)
             if (cmd in self.LAYER_FUNCTIONS):
-                body = '    {{ "{}",{}reinterpret_cast<PFN_xrVoidFunction>({}) }},'.format(
+                body = '    {{ "{}",{}reinterpret_cast<PFN_xrVoidFunction>(OpenXr{}) }},'.format(
                     cmd, (' ' * align), cmd[2:]
                 )
             else:
                 body = '    {{ "{}",{}reinterpret_cast<PFN_xrVoidFunction>(encode::{}) }},'.format(
-                    cmd, (' ' * align), cmd[2:]
+                    cmd, (' ' * align), cmd
                 )
             write(body, file=self.outFile)

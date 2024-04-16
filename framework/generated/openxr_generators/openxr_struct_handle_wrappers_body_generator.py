@@ -64,7 +64,7 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
     ):
         BaseGenerator.__init__(
             self,
-            process_cmds=False,
+            process_cmds=True,
             process_structs=True,
             feature_break=False,
             err_file=err_file,
@@ -76,10 +76,12 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
         # that contain handles (eg. VkGraphicsPipelineCreateInfo contains a VkPipelineShaderStageCreateInfo
         # member that contains handles).
         self.structs_with_handles = dict()
-        self.pnext_structs_with_handles = dict(
-        )  # Map of OpenXR structure types to type value for structs that can be part of a pNext chain and contain handles.
-        self.pnext_structs = dict(
-        )  # Map of OpenXR structure types to type value for structs that can be part of a pNext chain and do not contain handles.
+        self.next_structs_with_handles = dict(
+        )  # Map of OpenXR structure types to type value for structs that can be part of a next chain and contain handles.
+        self.next_structs = dict(
+        )  # Map of OpenXR structure types to type value for structs that can be part of a next chain and do not contain handles.
+        self.output_structs = [
+        ]  # Output structures that retrieve handles, which need to be wrapped.
 
     def beginFile(self, gen_opts):
         """Method override."""
@@ -92,13 +94,14 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
         self.newline()
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(encode)', file=self.outFile)
+        write('GFXRECON_BEGIN_NAMESPACE(openxr_wrappers)', file=self.outFile)
 
     def endFile(self):
         """Method override."""
-        # Generate the pNext shallow copy code, for pNext structs that don't have handles, but need to be preserved in the overall copy for handle wrapping.
+        # Generate the next shallow copy code, for next structs that don't have handles, but need to be preserved in the overall copy for handle wrapping.
         self.newline()
         write(
-            'XrBaseInStructure* CopyPNextStruct(const XrBaseInStructure* base, HandleUnwrapMemory* unwrap_memory)',
+            'XrBaseInStructure* CopyNextStruct(const XrBaseInStructure* base, HandleUnwrapMemory* unwrap_memory)',
             file=self.outFile
         )
         write('{', file=self.outFile)
@@ -109,15 +112,16 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
         write('    {', file=self.outFile)
         write('    default:', file=self.outFile)
         write(
-            '        GFXRECON_LOG_WARNING("Failed to copy entire pNext chain when unwrapping handles due to unrecognized type %d", base->type);',
+            '        GFXRECON_LOG_WARNING("Failed to copy entire next chain when unwrapping handles due to unrecognized type %d", base->type);',
             file=self.outFile
         )
         write('        break;', file=self.outFile)
-        for base_type in self.pnext_structs:
+        for base_type in self.next_structs:
             write(
-                '    case {}:'.format(self.pnext_structs[base_type]),
+                '    case {}:'.format(self.next_structs[base_type]),
                 file=self.outFile
             )
+            prefix = self.get_prefix_from_type(base_type)
             write(
                 '        copy = reinterpret_cast<XrBaseInStructure*>(MakeUnwrapStructs(reinterpret_cast<const {}*>(base), 1, unwrap_memory));'
                 .format(base_type),
@@ -129,10 +133,10 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
         write('    return copy;', file=self.outFile)
         write('}', file=self.outFile)
 
-        # Generate the pNext handle wrapping code.
+        # Generate the next handle wrapping code.
         self.newline()
         write(
-            'const void* UnwrapPNextStructHandles(const void* value, HandleUnwrapMemory* unwrap_memory)',
+            'const void* UnwrapNextStructHandles(const void* value, HandleUnwrapMemory* unwrap_memory)',
             file=self.outFile
         )
         write('{', file=self.outFile)
@@ -152,22 +156,22 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
             file=self.outFile
         )
         write(
-            '            XrBaseInStructure* copy = CopyPNextStruct(base, unwrap_memory);',
+            '            XrBaseInStructure* copy = CopyNextStruct(base, unwrap_memory);',
             file=self.outFile
         )
         write('            if (copy != nullptr)', file=self.outFile)
         write('            {', file=self.outFile)
         write(
-            '                copy->pNext = reinterpret_cast<const XrBaseInStructure*>(UnwrapPNextStructHandles(base->pNext, unwrap_memory));',
+            '                copy->next = reinterpret_cast<const XrBaseInStructure*>(UnwrapNextStructHandles(base->next, unwrap_memory));',
             file=self.outFile
         )
         write('            }', file=self.outFile)
         write('            return copy;', file=self.outFile)
         write('        }', file=self.outFile)
-        for base_type in self.pnext_structs_with_handles:
+        for base_type in self.next_structs_with_handles:
             write(
                 '        case {}:'.format(
-                    self.pnext_structs_with_handles[base_type]
+                    self.next_structs_with_handles[base_type]
                 ),
                 file=self.outFile
             )
@@ -183,6 +187,7 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
         write('}', file=self.outFile)
 
         self.newline()
+        write('GFXRECON_END_NAMESPACE(openxr_wrappers)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(encode)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
 
@@ -198,15 +203,15 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
                 typename, self.structs_with_handles
             )
 
-            # Track this struct if it can be present in a pNext chain.
+            # Track this struct if it can be present in a next chain.
             parent_structs = typeinfo.elem.get('structextends')
             if parent_structs:
                 type = self.make_structure_type_enum(typeinfo, typename)
                 if type:
                     if has_handles:
-                        self.pnext_structs_with_handles[typename] = type
+                        self.next_structs_with_handles[typename] = type
 
-                    self.pnext_structs[typename] = type
+                    self.next_structs[typename] = type
 
     def need_feature_generation(self):
         """Indicates that the current feature has C++ code to generate."""
@@ -216,6 +221,18 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
 
     def generate_feature(self):
         """Performs C++ code generation for the feature."""
+        # Check for output structures, which retrieve handles that need to be wrapped.
+        for cmd in self.feature_cmd_params:
+            info = self.feature_cmd_params[cmd]
+            values = info[2]
+
+            for value in values:
+                if self.is_output_parameter(value) and self.is_struct(
+                    value.base_type
+                ) and (value.base_type in self.structs_with_handles
+                       ) and (value.base_type not in self.output_structs):
+                    self.output_structs.append(value.base_type)
+
         for struct in self.get_filtered_struct_names():
             if (
                 (struct in self.structs_with_handles)
@@ -252,10 +269,10 @@ class OpenXrStructHandleWrappersBodyGenerator(BaseGenerator):
         body = ''
 
         for member in handle_members:
-            if 'pNext' in member.name:
-                body += '        if (value->pNext != nullptr)\n'
+            if 'next' in member.name:
+                body += '        if (value->next != nullptr)\n'
                 body += '        {\n'
-                body += '            value->pNext = UnwrapPNextStructHandles(value->pNext, unwrap_memory);\n'
+                body += '            value->next = UnwrapNextStructHandles(value->next, unwrap_memory);\n'
                 body += '        }\n'
             elif self.is_struct(member.base_type):
                 # This is a struct that includes handles.

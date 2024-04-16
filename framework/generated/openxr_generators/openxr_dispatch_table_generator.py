@@ -85,10 +85,12 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
     def beginFile(self, gen_opts):
         """Method override."""
         BaseGenerator.beginFile(self, gen_opts)
-
+        self.newline()
         write('#include "format/platform_types.h"', file=self.outFile)
         write('#include "util/defines.h"', file=self.outFile)
         write('#include "util/logging.h"', file=self.outFile)
+        self.newline()
+        self.forceCommonXrDefines(gen_opts)
         self.newline()
         self.includeOpenXrHeaders(gen_opts)
         self.newline()
@@ -100,7 +102,7 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
         """Method override."""
         self.newline()
 
-        write('typedef const void* DispatchKey;', file=self.outFile)
+        write('typedef const void* OpenXrDispatchKey;', file=self.outFile)
         self.newline()
 
         write(
@@ -108,12 +110,12 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
             file=self.outFile
         )
         write(
-            'static DispatchKey GetDispatchKey(const void* handle)',
+            'static OpenXrDispatchKey GetOpenXrDispatchKey(const void* handle)',
             file=self.outFile
         )
         write('{', file=self.outFile)
         write(
-            '    const DispatchKey* dispatch_key = reinterpret_cast<const DispatchKey*>(handle);',
+            '    const OpenXrDispatchKey* dispatch_key = reinterpret_cast<const OpenXrDispatchKey*>(handle);',
             file=self.outFile
         )
         write('    return (*dispatch_key);', file=self.outFile)
@@ -123,10 +125,10 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
         self.generate_no_op_funcs()
         self.newline()
 
-        write('struct LayerTable', file=self.outFile)
+        write('struct OpenXrLayerTable', file=self.outFile)
         write('{', file=self.outFile)
         write(
-            '    PFN_xrCreateInstance CreateInstance{ nullptr };',
+            '    PFN_xrCreateApiLayerInstance CreateApiLayerInstance{ nullptr };',
             file=self.outFile
         )
         write('};', file=self.outFile)
@@ -140,17 +142,17 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
             file=self.outFile
         )
         write(
-            'static void LoadFunction(GetProcAddr gpa, Handle handle, const char* name, FuncP* funcp)',
+            'static void LoadOpenXrFunction(GetProcAddr gpa, Handle handle, const char* name, FuncP* funcp)',
             file=self.outFile
         )
         write('{', file=self.outFile)
         write(
-            '    FuncP result = reinterpret_cast<FuncP>(gpa(handle, name));',
+            '    XrResult result = gpa(handle, name, reinterpret_cast<PFN_xrVoidFunction*>(funcp));',
             file=self.outFile
         )
-        write('    if (result != nullptr)', file=self.outFile)
+        write('    if (result != XR_SUCCESS)', file=self.outFile)
         write('    {', file=self.outFile)
-        write('        (*funcp) = result;', file=self.outFile)
+        write('        (*funcp) = nullptr;', file=self.outFile)
         write('    }', file=self.outFile)
         write('}', file=self.outFile)
 
@@ -190,13 +192,11 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
 
     def generate_instance_cmd_table(self):
         """Generate instance dispatch table structure."""
-        write('struct InstanceTable', file=self.outFile)
+        write('struct OpenXrInstanceTable', file=self.outFile)
         write('{', file=self.outFile)
 
         for name in self.instance_cmd_names:
-            decl = '    PFN_{} {}{{ noop::{} }};'.format(
-                name, name[2:], name[2:]
-            )
+            decl = '    PFN_{} {}{{ noop::{} }};'.format(name, name[2:], name)
             write(decl, file=self.outFile)
 
         write('};', file=self.outFile)
@@ -215,7 +215,7 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
     def generate_load_instance_table_func(self):
         """Generate function to set the instance table's functions with a getprocaddress routine."""
         write(
-            'static void LoadInstanceTable(PFN_xrGetInstanceProcAddr gpa, XrInstance instance, InstanceTable* table)',
+            'static void LoadOpenXrInstanceTable(PFN_xrGetInstanceProcAddr gpa, XrInstance instance, OpenXrInstanceTable* table)',
             file=self.outFile
         )
         write('{', file=self.outFile)
@@ -228,7 +228,7 @@ class OpenXrDispatchTableGenerator(BaseGenerator):
                     '    table->GetInstanceProcAddr = gpa;', file=self.outFile
                 )
             else:
-                expr = '    LoadFunction(gpa, instance, "{}", &table->{});'.format(
+                expr = '    LoadOpenXrFunction(gpa, instance, "{}", &table->{});'.format(
                     name, name[2:]
                 )
                 write(expr, file=self.outFile)
