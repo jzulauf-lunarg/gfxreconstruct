@@ -1,5 +1,5 @@
 ###############################################################################
-# Copyright (c) 2018-2023 LunarG, Inc.
+# Copyright (c) 2018-2024 LunarG, Inc.
 # Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 # All rights reserved
 #
@@ -37,6 +37,8 @@ target_sources(gfxrecon_decode
                     ${CMAKE_CURRENT_LIST_DIR}/custom_openxr_struct_decoders.h
                     ${CMAKE_CURRENT_LIST_DIR}/custom_openxr_struct_decoders.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/custom_openxr_struct_decoders_forward.h
+                    ${CMAKE_CURRENT_LIST_DIR}/custom_openxr_struct_to_json.h
+                    ${CMAKE_CURRENT_LIST_DIR}/custom_openxr_struct_to_json.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/custom_vulkan_struct_decoders.h
                     ${CMAKE_CURRENT_LIST_DIR}/custom_vulkan_struct_decoders.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/custom_vulkan_struct_decoders_forward.h
@@ -74,6 +76,8 @@ target_sources(gfxrecon_decode
                     ${CMAKE_CURRENT_LIST_DIR}/openxr_decoder_base.h
                     ${CMAKE_CURRENT_LIST_DIR}/openxr_decoder_base.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/openxr_detection_consumer.h
+                    ${CMAKE_CURRENT_LIST_DIR}/openxr_json_consumer_base.h
+                    ${CMAKE_CURRENT_LIST_DIR}/openxr_json_consumer_base.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/openxr_next_node.h
                     ${CMAKE_CURRENT_LIST_DIR}/openxr_next_typed_node.h
                     ${CMAKE_CURRENT_LIST_DIR}/openxr_stats_consumer.h
@@ -201,10 +205,16 @@ target_sources(gfxrecon_decode
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_consumer.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_decoder.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_decoder.cpp
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_enum_to_json.h
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_enum_to_json.cpp
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_json_consumer.h
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_json_consumer.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_struct_decoders.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_struct_decoders.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_struct_decoders_forward.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_struct_next_decoder.cpp
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_struct_to_json.h
+                    ${CMAKE_SOURCE_DIR}/framework/generated/generated_openxr_struct_to_json.cpp
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_consumer.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_decoder.h
                     ${CMAKE_SOURCE_DIR}/framework/generated/generated_vulkan_decoder.cpp

@@ -29,6 +29,7 @@
 #include "generated/generated_dx12_decoder.h"
 #endif
 #include "decode/file_processor.h"
+
 #include "decode/vulkan_default_allocator.h"
 #include "decode/vulkan_realign_allocator.h"
 #include "decode/vulkan_rebind_allocator.h"
@@ -36,12 +37,21 @@
 #include "decode/vulkan_replay_options.h"
 #include "decode/vulkan_resource_tracking_consumer.h"
 #include "decode/vulkan_tracked_object_info_table.h"
+
+#ifdef ENABLE_OPENXR_SUPPORT
+#include "generated/generated_openxr_decoder.h"
+#endif
 #include "generated/generated_vulkan_decoder.h"
+
 #include "util/argument_parser.h"
 #include "util/logging.h"
 #include "util/platform.h"
 #include "util/options.h"
 #include "util/strings.h"
+
+#ifdef ENABLE_OPENXR_SUPPORT
+#include "openxr/openxr.h"
+#endif
 
 #include "vulkan/vulkan_core.h"
 
@@ -117,8 +127,8 @@ const char kExpandFlagsOption[]                   = "--expand-flags";
 const char kFilePerFrameOption[]                  = "--file-per-frame";
 const char kSkipGetFenceStatus[]                  = "--skip-get-fence-status";
 const char kSkipGetFenceRanges[]                  = "--skip-get-fence-ranges";
+const char kApiFamilyOption[]                     = "--api";
 #if defined(WIN32)
-const char kApiFamilyOption[]             = "--api";
 const char kDxTwoPassReplay[]             = "--dx12-two-pass-replay";
 const char kDxOverrideObjectNames[]       = "--dx12-override-object-names";
 const char kBatchingMemoryUsageArgument[] = "--batching-memory-usage";
@@ -154,11 +164,14 @@ const char kSwapchainVirtual[]   = "virtual";
 const char kSwapchainCaptured[]  = "captured";
 const char kSwapchainOffscreen[] = "offscreen";
 
-#if defined(WIN32)
-const char kApiFamilyVulkan[] = "vulkan";
-const char kApiFamilyD3D12[]  = "d3d12";
-const char kApiFamilyAll[]    = "all";
+#ifdef ENABLE_OPENXR_SUPPORT
+const char kApiFamilyOpenXr[] = "openxr";
 #endif
+const char kApiFamilyVulkan[] = "vulkan";
+#if defined(WIN32)
+const char kApiFamilyD3D12[] = "d3d12";
+#endif
+const char kApiFamilyAll[] = "all";
 
 const char kScreenshotFormatBmp[] = "bmp";
 const char kScreenshotFormatPng[] = "png";
@@ -692,7 +705,6 @@ GetCreateResourceAllocatorFunc(const gfxrecon::util::ArgumentParser&           a
     return func;
 }
 
-#if defined(WIN32)
 static bool IsApiFamilyIdEnabled(const gfxrecon::util::ArgumentParser& arg_parser, gfxrecon::format::ApiFamilyId api)
 {
     const std::string& value = arg_parser.GetArgumentValue(kApiFamilyOption);
@@ -708,10 +720,16 @@ static bool IsApiFamilyIdEnabled(const gfxrecon::util::ArgumentParser& arg_parse
         {
             return (api == gfxrecon::format::ApiFamilyId::ApiFamily_Vulkan);
         }
+        else if (gfxrecon::util::platform::StringCompareNoCase(kApiFamilyOpenXr, value.c_str()) == 0)
+        {
+            return (api == gfxrecon::format::ApiFamilyId::ApiFamily_OpenXR);
+        }
+#if defined(WIN32)
         else if (gfxrecon::util::platform::StringCompareNoCase(kApiFamilyD3D12, value.c_str()) == 0)
         {
             return (api == gfxrecon::format::ApiFamilyId::ApiFamily_D3D12);
         }
+#endif
         else
         {
             GFXRECON_LOG_WARNING("Ignoring unrecognized API option \"%s\"", value.c_str());
@@ -724,7 +742,6 @@ static bool IsApiFamilyIdEnabled(const gfxrecon::util::ArgumentParser& arg_parse
         return true;
     }
 }
-#endif
 
 static void IsForceWindowed(gfxrecon::decode::ReplayOptions& options, const gfxrecon::util::ArgumentParser& arg_parser)
 {
@@ -1048,6 +1065,12 @@ static bool CheckOptionPrintVersion(const char* exe_name, const gfxrecon::util::
                                VK_VERSION_MAJOR(VK_HEADER_VERSION_COMPLETE),
                                VK_VERSION_MINOR(VK_HEADER_VERSION_COMPLETE),
                                VK_VERSION_PATCH(VK_HEADER_VERSION_COMPLETE));
+#ifdef ENABLE_OPENXR_SUPPORT
+        GFXRECON_WRITE_CONSOLE("  OpenXR Header Version %u.%u.%u",
+                               XR_VERSION_MAJOR(XR_CURRENT_API_VERSION),
+                               XR_VERSION_MINOR(XR_CURRENT_API_VERSION),
+                               XR_VERSION_PATCH(XR_CURRENT_API_VERSION));
+#endif
 
         return true;
     }
