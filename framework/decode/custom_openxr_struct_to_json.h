@@ -65,6 +65,10 @@ void FieldToJson(nlohmann::ordered_json&                    jdata,
 void FieldToJson(nlohmann::ordered_json& jdata,
                  const Decoded_timespec* data,
                  const util::JsonOptions& = util::JsonOptions());
+void FieldToJson(nlohmann::ordered_json& jdata,
+    const Decoded_LARGE_INTEGER* data,
+    const util::JsonOptions & = util::JsonOptions());
+
 
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)

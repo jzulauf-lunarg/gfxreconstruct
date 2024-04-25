@@ -22,6 +22,19 @@
 */
 
 #ifdef ENABLE_OPENXR_SUPPORT
+#ifdef D3D12_SUPPORT
+//**********************************************************************************************************************************
+//
+// NOTE NOTE NOTE WIP:  This shouldn't be needed for a layer that just captures OpenXR and Vulkan
+//                      Probably need to refactor the way we build the OpenXR Encode/Decode s.t. this layer doesn't need this
+// This needs to be included before d3d12.h so that IIDs are defined and not just declared.
+#include <initguid.h>
+// This IID is not defined in d3dcommon.h or dxguid.lib
+DEFINE_GUID(IID_ID3DDestructionNotifier, 0xa06eb39a, 0x50da, 0x425b, 0x8c, 0x31, 0x4e, 0xec, 0xd6, 0xc2, 0x70, 0xf3);
+#endif
+//
+//**********************************************************************************************************************************
+
 #include "encode/openxr_capture_manager.h"
 #endif // ENABLE_OPENXR_SUPPORT
 #include "encode/vulkan_capture_manager.h"

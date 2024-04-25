@@ -41,54 +41,12 @@
 #include "decode/openxr_next_node.h"
 #include "format/format.h"
 #include "format/platform_types.h"
+#include "generated/generated_dx12_struct_decoders.h"
 #include "generated/generated_openxr_struct_decoders_forward.h"
 #include "util/defines.h"
 
-// Define the platform defines so that we can have entrypoints for each
-// possible entrypoint in our dispatch table.
-#ifndef XR_USE_PLATFORM_WIN32
-#define XR_USE_PLATFORM_WIN32
-#endif
-#ifndef XR_USE_PLATFORM_WAYLAND
-#define XR_USE_PLATFORM_WAYLAND
-#endif
-#ifndef XR_USE_PLATFORM_XCB
-#define XR_USE_PLATFORM_XCB
-#endif
-#ifndef XR_USE_PLATFORM_XLIB
-#define XR_USE_PLATFORM_XLIB
-#endif
-#ifndef XR_USE_PLATFORM_ANDROID
-#define XR_USE_PLATFORM_ANDROID
-#endif
-#ifndef XR_USE_PLATFORM_ML
-#define XR_USE_PLATFORM_ML
-#endif
-#ifndef XR_USE_PLATFORM_EGL
-#define XR_USE_PLATFORM_EGL
-#endif
-#ifndef XR_USE_GRAPHICS_API_VULKAN
-#define XR_USE_GRAPHICS_API_VULKAN
-#endif
-#ifndef XR_USE_GRAPHICS_API_OPENGL
-#define XR_USE_GRAPHICS_API_OPENGL
-#endif
-#ifndef XR_USE_GRAPHICS_API_OPENGL_ES
-#define XR_USE_GRAPHICS_API_OPENGL_ES
-#endif
-#ifndef XR_USE_GRAPHICS_API_D3D11
-#define XR_USE_GRAPHICS_API_D3D11
-#endif
-#ifndef XR_USE_GRAPHICS_API_D3D12
-#define XR_USE_GRAPHICS_API_D3D12
-#endif
-#ifndef XR_USE_TIMESPEC
-#define XR_USE_TIMESPEC
-#endif
 
-#include "openxr/openxr.h"
-#include "openxr/openxr_loader_negotiation.h"
-#include "openxr/openxr_platform.h"
+#include "util/openxr.h"
 
 #include <memory>
 
@@ -1022,6 +980,7 @@ struct Decoded_XrGraphicsRequirementsD3D11KHR
     XrGraphicsRequirementsD3D11KHR* decoded_value{ nullptr };
 
     OpenXrNextNode* next{ nullptr };
+    Decoded_LUID* adapterLuid{ nullptr };
 };
 
 struct Decoded_XrGraphicsBindingD3D12KHR
@@ -1052,6 +1011,7 @@ struct Decoded_XrGraphicsRequirementsD3D12KHR
     XrGraphicsRequirementsD3D12KHR* decoded_value{ nullptr };
 
     OpenXrNextNode* next{ nullptr };
+    Decoded_LUID* adapterLuid{ nullptr };
 };
 
 struct Decoded_XrVisibilityMaskKHR

@@ -91,6 +91,10 @@ class OpenXrStructDecodersHeaderGenerator(
         write('#include "format/format.h"', file=self.outFile)
         write('#include "format/platform_types.h"', file=self.outFile)
         write(
+            '#include "generated/generated_dx12_struct_decoders.h"',
+            file=self.outFile
+        )
+        write(
             '#include "generated/generated_openxr_struct_decoders_forward.h"',
             file=self.outFile
         )

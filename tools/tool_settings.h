@@ -50,7 +50,7 @@
 #include "util/strings.h"
 
 #ifdef ENABLE_OPENXR_SUPPORT
-#include "openxr/openxr.h"
+#include "util/openxr.h"
 #endif
 
 #include "vulkan/vulkan_core.h"

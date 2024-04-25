@@ -88,13 +88,10 @@ void EncodeStruct(ParameterEncoder* encoder, const XrVulkanDeviceCreateInfoKHR& 
 
 void EncodeStruct(ParameterEncoder* encoder, const timespec& value)
 {
-#if defined(__USE_TIME_BITS64) || __WORDSIZE == 64
-    encoder->EncodeInt64Value(value.tv_sec);
-    encoder->EncodeInt64Value(value.tv_nsec);
-#else
-    encoder->EncodeInt32Value(value.tv_sec);
-    encoder->EncodeUInt32Value(value.tv_nsec);
-#endif
+    // The sizeof tv_sec and tv_nsec can indepenently vary between 4 and 8 bytes depending on platform and configuration
+    // Always encode as int64_t (standard defines both as signed)
+    encoder->EncodeInt64Value(static_cast<int64_t>(value.tv_sec));
+    encoder->EncodeInt64Value(static_cast<int64_t>(value.tv_nsec));
 }
 
 GFXRECON_END_NAMESPACE(encode)

@@ -74,7 +74,8 @@ class ParameterEncoder
     void EncodeUInt64Value(uint64_t value)                                                                            { EncodeValue(value); }
     void EncodeFloatValue(float value)                                                                                { EncodeValue(value); }
     void EncodeDoubleValue(double value)                                                                              { EncodeValue(value); }
-    void EncodeVkBool32Value(VkBool32 value)                                                                          { EncodeValue(value); }
+    void EncodeVkBool32Value(VkBool32 value) { EncodeValue(value); }
+    void EncodeLARGE_INTEGERValue(const LARGE_INTEGER &value) { EncodeValue(value.QuadPart); }
 #if ENABLE_OPENXR_SUPPORT
     void EncodeD3D_FEATURE_LEVELValue(D3D_FEATURE_LEVEL value)                                                        { EncodeValue(value); }
 #endif // ENABLE_OPENXR_SUPPORT
@@ -126,6 +127,7 @@ class ParameterEncoder
     void EncodeVkDeviceSizePtr(const VkDeviceSize* ptr, bool omit_data = false, bool omit_addr = false)               { EncodePointerConverted<format::DeviceSizeEncodeType>(ptr, omit_data, omit_addr); }
     void EncodeSizeTPtr(const size_t* ptr, bool omit_data = false, bool omit_addr = false)                            { EncodePointerConverted<format::SizeTEncodeType>(ptr, omit_data, omit_addr); }
     void EncodeHandleIdPtr(const format::HandleId* ptr, bool omit_data = false, bool omit_addr = false)               { EncodePointerConverted<format::HandleEncodeType>(ptr, omit_data, omit_addr); }
+    void EncodeLARGE_INTEGERPtr(const LARGE_INTEGER* ptr, bool omit_data = false, bool omit_addr = false)               { EncodePointer<LONGLONG>(&(ptr->QuadPart), omit_data, omit_addr); }
 
     // Treat pointers to non-Vulkan objects as 64-bit object IDs.
     template<typename T>

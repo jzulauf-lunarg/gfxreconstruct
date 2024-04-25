@@ -34,6 +34,7 @@
 #include "util/logging.h"
 
 #include <cassert>
+#include <limits>
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
@@ -167,17 +168,39 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_timespec*
 {
     assert((wrapper != nullptr) && (wrapper->decoded_value != nullptr));
 
+
+    // Note that the *native* timespec which may have 32 or 64 bit fields for both second and nanosecond fields.
+    // The *encoded* stream always has 64 bit seconds and nanosecond values however, so decode to local variables 
+    int64_t tv_sec;  // Yes time_t is signed on POSIX compliant systems, regardless of size 
+    int64_t tv_nsec; // Valid values should only be [0, 1E9), but the passed values may differ
+
     size_t    bytes_read = 0;
+    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &tv_sec);
+    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &tv_nsec);
+
+    // Note that this is the *native* timespec which may have 32 or 64 bit fields.
     timespec* value      = wrapper->decoded_value;
 
-#if defined(__USE_TIME_BITS64) || __WORDSIZE == 64
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_sec));
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_nsec));
-#else
-    bytes_read += ValueDecoder::DecodeInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_sec));
-    bytes_read += ValueDecoder::DecodeUInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_nsec));
-#endif
+    const static int64_t time_t_max = std::numeric_limits<time_t>::max();
+    if (tv_sec > time_t_max) {
+        GFXRECON_LOG_WARNING("Timespec seconds, %" PRIu64 ", exceeds replay platorm max for time_t: " PRIu64, tv_sec, time_t_max);
+    }
+    const static int64_t ns_max = 1000000000 - 1;
+    if (tv_nsec > ns_max) {
+        GFXRECON_LOG_WARNING("Timespec nanoseconds, %" PRIu64 ", is outside valid range[0... 999, 999, 999]", tv_nsec);
+    }
 
+    value->tv_sec = static_cast<time_t>(tv_sec);
+    value->tv_nsec = static_cast<long>(tv_nsec); // tv nsec is always 'long', which can be either 4 or 8 bytes
+
+    return bytes_read;
+}
+
+size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, LUID* luid)
+{
+    size_t bytes_read = 0;
+    bytes_read += ValueDecoder::DecodeUInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &luid->LowPart);
+    bytes_read += ValueDecoder::DecodeInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &luid->HighPart);
     return bytes_read;
 }
 

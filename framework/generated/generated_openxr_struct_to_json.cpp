@@ -1396,7 +1396,7 @@ void FieldToJson(nlohmann::ordered_json& jdata, const Decoded_XrGraphicsRequirem
         const Decoded_XrGraphicsRequirementsD3D11KHR& meta_struct = *data;
 
         FieldToJson(jdata["type"], decoded_value.type, options);
-        FieldToJson(jdata["adapterLuid"], decoded_value.adapterLuid, options);
+        FieldToJson(jdata["adapterLuid"], meta_struct.adapterLuid, options);
         FieldToJson(jdata["minFeatureLevel"], decoded_value.minFeatureLevel, options);
         FieldToJson(jdata["next"], meta_struct.next, options);
     }
@@ -1437,7 +1437,7 @@ void FieldToJson(nlohmann::ordered_json& jdata, const Decoded_XrGraphicsRequirem
         const Decoded_XrGraphicsRequirementsD3D12KHR& meta_struct = *data;
 
         FieldToJson(jdata["type"], decoded_value.type, options);
-        FieldToJson(jdata["adapterLuid"], decoded_value.adapterLuid, options);
+        FieldToJson(jdata["adapterLuid"], meta_struct.adapterLuid, options);
         FieldToJson(jdata["minFeatureLevel"], decoded_value.minFeatureLevel, options);
         FieldToJson(jdata["next"], meta_struct.next, options);
     }

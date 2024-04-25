@@ -42,9 +42,7 @@
 #include "generated/generated_openxr_struct_handle_wrappers.h"
 #include "util/defines.h"
 
-#include "openxr/openxr.h"
-#include "openxr/openxr_loader_negotiation.h"
-#include "openxr/openxr_platform.h"
+#include "util/openxr.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
@@ -2831,7 +2829,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrConvertWin32PerformanceCounterToTimeKHR(
     if (encoder)
     {
         encoder->EncodeOpenXrHandleValue<openxr_wrappers::InstanceWrapper>(instance);
-        encoder->EncodeInt64Ptr(performanceCounter);
+        encoder->EncodeLARGE_INTEGERPtr(performanceCounter);
         encoder->EncodeInt64Ptr(time, omit_output_data);
         encoder->EncodeEnumValue(result);
         manager->EndApiCallCapture();
@@ -2876,7 +2874,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrConvertTimeToWin32PerformanceCounterKHR(
     {
         encoder->EncodeOpenXrHandleValue<openxr_wrappers::InstanceWrapper>(instance);
         encoder->EncodeInt64Value(time);
-        encoder->EncodeInt64Ptr(performanceCounter, omit_output_data);
+        encoder->EncodeLARGE_INTEGERPtr(performanceCounter, omit_output_data);
         encoder->EncodeEnumValue(result);
         manager->EndApiCallCapture();
     }

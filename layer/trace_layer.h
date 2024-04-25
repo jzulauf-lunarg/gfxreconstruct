@@ -29,7 +29,7 @@
 #include "vulkan/vulkan.h"
 
 #ifdef ENABLE_OPENXR_SUPPORT
-#include "openxr/openxr.h"
+#include "util/openxr.h"
 #include "openxr/openxr_loader_negotiation.h"
 #endif
 
