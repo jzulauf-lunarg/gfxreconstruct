@@ -32,9 +32,7 @@
 #include "util/defines.h"
 #include "generated/generated_openxr_json_consumer.h"
 #include "decode/custom_openxr_struct_to_json.h"
-#include "openxr/openxr.h"
-#include "openxr/openxr_loader_negotiation.h"
-#include "openxr/openxr_platform.h"
+#include "util/openxr.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
@@ -1122,7 +1120,7 @@ void OpenXrExportJsonConsumer::Process_xrConvertWin32PerformanceCounterToTimeKHR
     const ApiCallInfo&                          call_info,
     XrResult                                    returnValue,
     format::HandleId                            instance,
-    PointerDecoder<int64_t>*                    performanceCounter,
+    PointerDecoder<LARGE_INTEGER>*              performanceCounter,
     PointerDecoder<XrTime>*                     time)
 {
     nlohmann::ordered_json& jdata = WriteApiCallStart(call_info, "xrConvertWin32PerformanceCounterToTimeKHR");
@@ -1140,7 +1138,7 @@ void OpenXrExportJsonConsumer::Process_xrConvertTimeToWin32PerformanceCounterKHR
     XrResult                                    returnValue,
     format::HandleId                            instance,
     XrTime                                      time,
-    PointerDecoder<int64_t>*                    performanceCounter)
+    PointerDecoder<LARGE_INTEGER>*              performanceCounter)
 {
     nlohmann::ordered_json& jdata = WriteApiCallStart(call_info, "xrConvertTimeToWin32PerformanceCounterKHR");
     const JsonOptions& json_options = GetJsonOptions();

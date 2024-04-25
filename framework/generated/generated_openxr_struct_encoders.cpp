@@ -36,9 +36,17 @@
 #include "encode/struct_pointer_encoder.h"
 #include "util/defines.h"
 
-#include "openxr/openxr.h"
-#include "openxr/openxr_loader_negotiation.h"
-#include "openxr/openxr_platform.h"
+#ifdef D3D12_SUPPORT
+#include "generated/generated_dx12_api_call_encoders.h"
+#else /* D3D12_SUPPORT */
+void EncodeStruct(ParameterEncoder* encoder, const LUID& value)
+{
+    encoder->EncodeUInt32Value(value.LowPart);
+    encoder->EncodeInt32Value(value.HighPart);
+}
+#endif /* D3D12_SUPPORT */
+
+#include "util/openxr.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
@@ -829,8 +837,8 @@ void EncodeStruct(ParameterEncoder* encoder, const XrGraphicsRequirementsD3D11KH
 {
     encoder->EncodeEnumValue(value.type);
     encoder->EncodeVoidPtr(value.next);
-    encoder->EncodeInt64Value(value.adapterLuid);
-    encoder->EncodeUInt32Value(value.minFeatureLevel);
+    EncodeStruct(encoder, value.adapterLuid);
+    encoder->EncodeD3D_FEATURE_LEVELValue(value.minFeatureLevel);
 }
 
 void EncodeStruct(ParameterEncoder* encoder, const XrGraphicsBindingD3D12KHR& value)
@@ -852,8 +860,8 @@ void EncodeStruct(ParameterEncoder* encoder, const XrGraphicsRequirementsD3D12KH
 {
     encoder->EncodeEnumValue(value.type);
     encoder->EncodeVoidPtr(value.next);
-    encoder->EncodeInt64Value(value.adapterLuid);
-    encoder->EncodeUInt32Value(value.minFeatureLevel);
+    EncodeStruct(encoder, value.adapterLuid);
+    encoder->EncodeD3D_FEATURE_LEVELValue(value.minFeatureLevel);
 }
 
 void EncodeStruct(ParameterEncoder* encoder, const XrVisibilityMaskKHR& value)

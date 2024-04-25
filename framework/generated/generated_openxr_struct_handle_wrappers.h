@@ -37,9 +37,7 @@
 #include "format/platform_types.h"
 #include "util/defines.h"
 
-#include "openxr/openxr.h"
-#include "openxr/openxr_loader_negotiation.h"
-#include "openxr/openxr_platform.h"
+#include "util/openxr.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)

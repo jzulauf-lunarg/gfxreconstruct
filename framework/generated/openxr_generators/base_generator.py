@@ -43,6 +43,7 @@ import re
 import sys
 import json
 from generator import GeneratorOptions, OutputGenerator, noneStr, regSortFeatures, write
+from base_generator_utils import BaseGeneratorUtils
 from xrconventions import OpenXRConventions
 
 
@@ -292,7 +293,7 @@ class BaseGenerator(OutputGenerator):
         self.PLATFORM_TYPES = {}
 
         # Platform specific structure types that have been defined extarnally to the OpenXR header.
-        self.PLATFORM_STRUCTS = ['timespec']
+        self.PLATFORM_STRUCTS = ['timespec', 'LUID']
 
         self.GENERIC_HANDLE_APICALLS = {}
 
@@ -423,74 +424,14 @@ class BaseGenerator(OutputGenerator):
 
     def forceCommonXrDefines(self, gen_opts):
         """Write OpenXR defines to enable all entrypoint/struct visibility
+           WIP WIP WIP Remove references ZZZ ZZZ ZZZ
         """
-        write(
-            '// Define the platform defines so that we can have entrypoints for each',
-            file=self.outFile
-        )
-        write(
-            '// possible entrypoint in our dispatch table.', file=self.outFile
-        )
-        write('#ifndef XR_USE_PLATFORM_WIN32', file=self.outFile)
-        write('#define XR_USE_PLATFORM_WIN32', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_PLATFORM_WAYLAND', file=self.outFile)
-        write('#define XR_USE_PLATFORM_WAYLAND', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_PLATFORM_XCB', file=self.outFile)
-        write('#define XR_USE_PLATFORM_XCB', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_PLATFORM_XLIB', file=self.outFile)
-        write('#define XR_USE_PLATFORM_XLIB', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_PLATFORM_ANDROID', file=self.outFile)
-        write('#define XR_USE_PLATFORM_ANDROID', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_PLATFORM_ML', file=self.outFile)
-        write('#define XR_USE_PLATFORM_ML', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_PLATFORM_EGL', file=self.outFile)
-        write('#define XR_USE_PLATFORM_EGL', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_GRAPHICS_API_VULKAN', file=self.outFile)
-        write('#define XR_USE_GRAPHICS_API_VULKAN', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_GRAPHICS_API_OPENGL', file=self.outFile)
-        write('#define XR_USE_GRAPHICS_API_OPENGL', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_GRAPHICS_API_OPENGL_ES', file=self.outFile)
-        write('#define XR_USE_GRAPHICS_API_OPENGL_ES', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_GRAPHICS_API_D3D11', file=self.outFile)
-        write('#define XR_USE_GRAPHICS_API_D3D11', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_GRAPHICS_API_D3D12', file=self.outFile)
-        write('#define XR_USE_GRAPHICS_API_D3D12', file=self.outFile)
-        write('#endif', file=self.outFile)
-
-        write('#ifndef XR_USE_TIMESPEC', file=self.outFile)
-        write('#define XR_USE_TIMESPEC', file=self.outFile)
-        write('#endif', file=self.outFile)
 
     def includeOpenXrHeaders(self, gen_opts):
         """Write OpenXR header include statements
         """
-        write('#include "openxr/openxr.h"', file=self.outFile)
-        write(
-            '#include "openxr/openxr_loader_negotiation.h"', file=self.outFile
-        )
-        write('#include "openxr/openxr_platform.h"', file=self.outFile)
+        write('#include "util/openxr.h"', file=self.outFile)
+
         for extra_openxr_header in gen_opts.extraOpenXrHeaders:
             header_include_path = re.sub(r'\\', '/', extra_openxr_header)
             write(f'#include "{header_include_path}"', file=self.outFile)
@@ -1180,26 +1121,12 @@ class BaseGenerator(OutputGenerator):
             return self.flags_types[base_type][2:]
         elif self.is_enum(base_type):
             return 'Enum'
-        elif base_type == 'wchar_t':
-            return 'WString'
-        elif base_type == 'char':
-            return 'String'
         elif self.is_function_ptr(base_type):
             return 'FunctionPtr'
-        elif base_type == 'size_t':
-            return 'SizeT'
-        elif base_type == 'int':
-            # Extensions use the int type when dealing with file descriptors
-            return 'Int32'
-        elif base_type.endswith('_t'):
-            if base_type[0] == 'u':
-                # For unsigned types, capitalize the first two characters.
-                return base_type[0].upper() + base_type[1].upper(
-                ) + base_type[2:-2]
-            else:
-                return base_type[:-2].title()
-        elif base_type[0].islower():
-            return base_type.title()
+        else:
+            lookup = BaseGeneratorUtils.lookup_type_converter(base_type)
+            if lookup:
+                return lookup
 
         return base_type
 

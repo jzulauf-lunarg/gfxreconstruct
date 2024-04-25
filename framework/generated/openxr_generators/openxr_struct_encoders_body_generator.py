@@ -23,7 +23,7 @@
 
 import sys
 from base_generator import BaseGenerator, BaseGeneratorOptions, write
-
+from reformat_code import format_cpp_code
 
 class OpenXrStructEncodersBodyGeneratorOptions(BaseGeneratorOptions):
     """Options for generating C++ functions for OpenXR API struct encoding."""
@@ -75,15 +75,25 @@ class OpenXrStructEncodersBodyGenerator(BaseGenerator):
         """Method override."""
         BaseGenerator.beginFile(self, gen_opts)
 
-        write(
-            '#include "generated/generated_openxr_struct_encoders.h"',
-            file=self.outFile
-        )
-        self.newline()
-        write('#include "encode/parameter_encoder.h"', file=self.outFile)
-        write('#include "encode/openxr_handle_wrappers.h"', file=self.outFile)
-        write('#include "encode/struct_pointer_encoder.h"', file=self.outFile)
-        write('#include "util/defines.h"', file=self.outFile)
+        write(format_cpp_code('''
+            #include "generated/generated_openxr_struct_encoders.h"
+
+            #include "encode/parameter_encoder.h"
+            #include "encode/openxr_handle_wrappers.h"
+            #include "encode/struct_pointer_encoder.h"
+            #include "util/defines.h"
+
+            #ifdef D3D12_SUPPORT
+            #include "generated/generated_dx12_api_call_encoders.h"
+            #else /* D3D12_SUPPORT */
+            void EncodeStruct(ParameterEncoder* encoder, const LUID& value)
+            {
+                encoder->EncodeUInt32Value(value.LowPart);
+                encoder->EncodeInt32Value(value.HighPart);
+            }
+            #endif /* D3D12_SUPPORT */
+        '''), file=self.outFile)
+
         self.newline()
         self.includeOpenXrHeaders(gen_opts)
         self.newline()

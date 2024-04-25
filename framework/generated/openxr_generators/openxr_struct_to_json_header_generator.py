@@ -77,6 +77,7 @@ class OpenXrStructToJsonHeaderGenerator(BaseGenerator):
         includes = format_cpp_code(
             '''
             #include "decode/custom_openxr_struct_to_json.h"
+            #include "generated_dx12_struct_decoders_to_json.h"
             '''
         )
         write(includes, file=self.outFile)

@@ -178,7 +178,9 @@ target_link_libraries(gfxrecon_encode
                         gfxrecon_util
                         vulkan_registry
                         openxr_headers
-                        platform_specific)
+                        platform_specific
+			$<$<BOOL:${D3D12_SUPPORT}>:dxguid.lib>
+			)
 
 common_build_directives(gfxrecon_encode)
 

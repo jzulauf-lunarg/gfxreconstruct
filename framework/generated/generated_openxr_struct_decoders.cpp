@@ -1699,8 +1699,10 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrGraphic
     bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
     bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
     value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->adapterLuid));
-    bytes_read += ValueDecoder::DecodeUInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->minFeatureLevel));
+    wrapper->adapterLuid = DecodeAllocator::Allocate<Decoded_LUID>();
+    wrapper->adapterLuid->decoded_value = &(value->adapterLuid);
+    bytes_read += DecodeStruct((buffer + bytes_read), (buffer_size - bytes_read), wrapper->adapterLuid);
+    bytes_read += ValueDecoder::DecodeD3D_FEATURE_LEVELValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->minFeatureLevel));
 
     return bytes_read;
 }
@@ -1749,8 +1751,10 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrGraphic
     bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
     bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
     value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->adapterLuid));
-    bytes_read += ValueDecoder::DecodeUInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->minFeatureLevel));
+    wrapper->adapterLuid = DecodeAllocator::Allocate<Decoded_LUID>();
+    wrapper->adapterLuid->decoded_value = &(value->adapterLuid);
+    bytes_read += DecodeStruct((buffer + bytes_read), (buffer_size - bytes_read), wrapper->adapterLuid);
+    bytes_read += ValueDecoder::DecodeD3D_FEATURE_LEVELValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->minFeatureLevel));
 
     return bytes_read;
 }

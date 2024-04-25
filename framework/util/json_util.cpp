@@ -57,6 +57,11 @@ void FieldToJson(nlohmann::ordered_json& jdata, const uint64_t data[4], const ut
     FieldToJson(jdata, data, 4, options);
 }
 
+void FieldToJson(nlohmann::ordered_json& jdata, const LARGE_INTEGER& value, const JsonOptions& options)
+{
+    FieldToJson(jdata, ToString(value.QuadPart), options);
+}
+
 void HandleToJson(nlohmann::ordered_json& jdata, const format::HandleId handle, const JsonOptions& options)
 {
     if (options.hex_handles)

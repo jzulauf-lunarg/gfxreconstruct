@@ -205,6 +205,9 @@ class Dx12BaseGenerator(BaseGenerator):
                 rtn += t
         return rtn
 
+    def get_api_prefix(self):
+        return 'Dx12'
+
     def get_return_value_info(self, param_type, function_name):
         base_type = ''
         full_type = param_type

@@ -48,13 +48,14 @@ typedef void*          HGLRC;
 
 // Define a version of the WIN32 SECURITY_ATTRIBUTES struct that
 // is suitable for decoding on non-WIN32 platforms.
-typedef uint32_t DWORD;
 // typedef int32_t  BOOL; // Conflicts with objective-c declaration on macOS
 typedef void*         LPVOID;
 typedef uint8_t       BYTE;
 typedef uint16_t      WORD;
-typedef unsigned long ULONG;
-typedef uint32_t      HRESULT;
+typedef uint32_t      DWORD;
+typedef int32_t       LONG;  // long on Windows is always 4 bytes
+typedef uint32_t      ULONG;
+typedef LONG          HRESULT;
 typedef WORD          SECURITY_DESCRIPTOR_CONTROL;
 typedef uint32_t&     REFIID;
 typedef void*         IUnknown;
@@ -102,17 +103,31 @@ struct SECURITY_ATTRIBUTES
     int32_t /* BOOL */ bInheritHandle;
 };
 
-typedef int64_t LUID;
+struct LUID {
+    DWORD LowPart;
+    LONG  HighPart;
+};
+
+typedef LUID* PLUID;
+
 typedef int64_t      LARGE_INTEGER;
 
 #endif // WIN32
 
-#ifdef XR_USE_PLATFORM_XLIB
+#ifndef __ANDROID__
+typedef void* jobject;
+#endif
+
+#if defined(XR_USE_PLATFORM_XLIB)  && !defined(WIN32)
 #include <X11/Xlib.h>
 #include "GL/glx.h"
+#else
+typedef void* GLXFBConfig;
+typedef size_t GLXDrawable;
+typedef void* GLXContext;
 #endif // XR_USE_PLATFORM_XLIB
 
-#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
+#if defined(XR_USE_GRAPHICS_API_OPENGL_ES) && !defined(WIN32)
 #include "EGL/egl.h"
 #else
 typedef unsigned int EGLenum;
@@ -121,18 +136,10 @@ typedef void*        EGLConfig;
 typedef void*        EGLContext;
 #endif // XR_USE_GRAPHICS_API_OPENGL_ES
 
-#ifdef XR_USE_PLATFORM_XCB
+#if (defined(VK_USE_PLATFORM_XCB_KHR) || defined(XR_USE_PLATFORM_XCB)) && !defined(WIN32)
 #include <xcb/xcb.h>
 #include "xcb/glx.h"
-#endif
-
-#if !defined(XR_USE_PLATFORM_XLIB)
-typedef void* GLXFBConfig;
-typedef size_t GLXDrawable;
-typedef void* GLXContext;
-#endif // !XR_USE_PLATFORM_XLIB
-
-#if !defined(VK_USE_PLATFORM_XCB_KHR) && !defined(XR_USE_PLATFORM_XCB)
+#else
 struct xcb_connection_t;
 typedef uint32_t xcb_glx_fbconfig_t;
 typedef uint32_t xcb_glx_drawable_t;
@@ -141,7 +148,7 @@ typedef uint32_t xcb_window_t;
 typedef uint32_t xcb_visualid_t;
 #endif // !VK_USE_PLATFORM_XCB_KHR && !XR_USE_PLATFORM_XCB
 
-#if !defined(VK_USE_PLATFORM_WAYLAND_KHR) && !defined(XR_USE_PLATFORM_WAYLAND)
+#if !defined(VK_USE_PLATFORM_WAYLAND_KHR) || (defined(XR_USE_PLATFORM_WAYLAND) && defined(WIN32))
 struct wl_display;
 struct wl_surface;
 #endif // !VK_USE_PLATFORM_WAYLAND_KHR && !XR_USE_PLATFORM_WAYLAND
@@ -1242,31 +1249,5 @@ extern "C"
 
 #endif // VK_USE_PLATFORM_SCREEN_QNX
 
-#if !defined(XR_USE_PLATFORM_ANDROID)
-typedef void* jobject;
-#endif // XR_USE_PLATFORM_ANDROID
-
-#if !defined(WIN32)
-#if !defined(XR_USE_GRAPHICS_API_D3D11)
-typedef void* ID3D11Device;
-typedef void* ID3D11Texture2D;
-#endif // XR_USE_GRAPHICS_API_D3D11
-
-#if !defined(XR_USE_GRAPHICS_API_D3D12)
-typedef void* ID3D12Device;
-typedef void* ID3D12CommandQueue;
-typedef void* ID3D12Resource;
-typedef void* ID3D12CommandQueue;
-
-typedef uint32_t D3D_FEATURE_LEVEL;
-#endif // XR_USE_GRAPHICS_API_D3D12
-#endif // WIN32
-
-#if !defined(XR_USE_PLATFORM_ML)
-typedef struct MLCoordinateFrameUID
-{
-    uint64_t data[2];
-} MLCoordinateFrameUID;
-#endif // XR_USE_PLATFORM_ML
 
 #endif // GFXRECON_PLATFORM_TYPES_H
