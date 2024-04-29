@@ -127,6 +127,7 @@ XrResult OpenXrCaptureManager::OverrideCreateApiLayerInstance(const XrInstanceCr
 
     if (result == XR_SUCCESS)
     {
+        InitXrInstance(instance, apiLayerInfo->nextInfo->nextGetInstanceProcAddr);
         auto api_version              = info->applicationInfo.apiVersion;
         auto instance_wrapper         = openxr_wrappers::GetWrapper<openxr_wrappers::InstanceWrapper>(*instance);
         instance_wrapper->api_version = api_version;
