@@ -37,6 +37,9 @@ class BaseDecoderBodyGenerator():
             if self.is_manually_generated_cmd_name(cmd):
                 continue
 
+            if self.is_manually_generated_cmd_name(cmd):
+                continue
+
             info = self.cmd_info[cmd]
             return_type = info[0]
             values = info[2]
