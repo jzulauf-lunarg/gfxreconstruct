@@ -202,11 +202,8 @@ class BaseStructDecodersBodyGenerator():
                 body += '    bytes_read += ValueDecoder::DecodeHandleIdValue({}, &(wrapper->{}));\n'.format(
                     buffer_args, value.name
                 )
-                type_prefix = self.get_prefix_from_type(value.name)
-                if type_prefix == "Vulkan":
-                    body += '    value->{} = VK_NULL_HANDLE;\n'.format(value.name)
-                elif type_prefix == "OpenXr":
-                    body += '    value->{} = XR_NULL_HANDLE;\n'.format(value.name)
+                default_type = self.get_default_handle_atom_value(value.base_type)
+                body += '    value->{} = {};\n'.format(value.name, default_type)
             elif self.is_generic_struct_handle_value(name, value.name):
                 body += '    bytes_read += ValueDecoder::DecodeUInt64Value({}, &(wrapper->{}));\n'.format(
                     buffer_args, value.name
