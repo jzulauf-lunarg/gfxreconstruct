@@ -67,7 +67,7 @@ class VulkanDecoderBodyGenerator(BaseDecoderBodyGenerator, BaseGenerator):
             self,
             process_cmds=True,
             process_structs=False,
-            feature_break=True,
+            feature_break=False,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
@@ -75,6 +75,11 @@ class VulkanDecoderBodyGenerator(BaseDecoderBodyGenerator, BaseGenerator):
 
         # Names of all Vulkan commands processed by the generator.
         self.cmd_names = []
+        self.cmd_info = dict()
+
+        # Names of any Vulkan commands whose decoders are manually generated
+        self.MANUALLY_GENERATED_COMMANDS = [
+        ]
 
     def beginFile(self, gen_opts):
         """Method override."""
@@ -106,6 +111,9 @@ class VulkanDecoderBodyGenerator(BaseDecoderBodyGenerator, BaseGenerator):
 
     def endFile(self):
         """Method override."""
+        self.newline()
+        self.generate_commands()
+
         self.newline()
         # Generate the VulkanDecoder::DecodeFunctionCall method for all of the commands processed by the generator.
         self.generate_decode_cases()
