@@ -213,14 +213,19 @@ class VulkanReplayConsumerBase : public VulkanConsumer
         return MapHandle<DeviceInfo>(capture_id, &VulkanObjectInfoTable::GetDeviceInfo);
     }
 
+    // Public to Allow other consumers to get the downchain Vulkan function map
+    const encode::VulkanInstanceTable* GetInstanceTable(const void* handle) const;
+    const encode::VulkanDeviceTable*   GetDeviceTable(const void* handle) const;
+
+    void AddImageHandle(format::HandleId parent_id, format::HandleId id, VkImage handle, ImageInfo&& initial_info)
+    {
+        AddHandle<ImageInfo>(parent_id, &id, &handle, std::move(initial_info), &VulkanObjectInfoTable::AddImageInfo);
+    }
+
   protected:
     const VulkanObjectInfoTable& GetObjectInfoTable() const { return object_info_table_; }
 
     VulkanObjectInfoTable& GetObjectInfoTable() { return object_info_table_; }
-
-    const encode::VulkanInstanceTable* GetInstanceTable(const void* handle) const;
-
-    const encode::VulkanDeviceTable* GetDeviceTable(const void* handle) const;
 
     void* PreProcessExternalObject(uint64_t object_id, format::ApiCallId call_id, const char* call_name);
 

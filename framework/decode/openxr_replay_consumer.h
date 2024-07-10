@@ -24,9 +24,12 @@
 #define GFXRECON_DECODE_OPENXR_JSON_CONSUMER_BASE_H
 
 #if ENABLE_OPENXR_SUPPORT
+#include <deque>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include "generated/generated_openxr_consumer.h"
+#include "generated/generated_vulkan_dispatch_table.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
@@ -83,6 +86,13 @@ class OpenXrReplayConsumer : public OpenXrConsumer
                                            format::HandleId                                     session,
                                            StructPointerDecoder<Decoded_XrSwapchainCreateInfo>* createInfo,
                                            HandlePointerDecoder<XrSwapchain>*                   swapchain) override;
+    virtual void
+                 Process_xrEnumerateSwapchainImages(const ApiCallInfo&                                        call_info,
+                                                    XrResult                                                  returnValue,
+                                                    format::HandleId                                          swapchain,
+                                                    uint32_t                                                  imageCapacityInput,
+                                                    PointerDecoder<uint32_t>*                                 imageCountOutput,
+                                                    StructPointerDecoder<Decoded_XrSwapchainImageBaseHeader>* images) override;
     virtual void Process_xrAcquireSwapchainImage(const ApiCallInfo&                                         call_info,
                                                  XrResult                                                   returnValue,
                                                  format::HandleId                                           swapchain,
@@ -213,22 +223,139 @@ class OpenXrReplayConsumer : public OpenXrConsumer
     }
 
     using ReferenceSpaceSet = std::unordered_set<XrReferenceSpaceType>;
-    struct SessionData
+
+    // Supported graphics bindings for OpenXr replay
+    enum class GraphicsBindingType
     {
-        ReferenceSpaceSet reference_spaces;
-        XrTime            last_display_time = XrTime();
+        kVulkan,
+        kUnknown
     };
 
-    struct SwapchainData
+    struct VulkanSwapchainInfo
     {
-        std::unordered_map<uint32_t, uint32_t> index_map;
+
+        // Structure necessary to track the necessary information related to the virtual swapchain images
+        struct ProxyImage
+        {
+            VkImage         image{ VK_NULL_HANDLE };
+            VkDeviceMemory  memory{ VK_NULL_HANDLE };
+            VkFence         cb_fence{ VK_NULL_HANDLE };
+            VkCommandBuffer command_buffer{ VK_NULL_HANDLE };
+        };
+
+        VkImageCreateInfo               image_create_info{ VK_STRUCTURE_TYPE_MAX_ENUM };
+        VkImageSubresourceRange         whole_range;
+        VkImageLayout                   layout;
+        XrVulkanSwapchainCreateInfoMETA xr_info_meta{ XR_TYPE_UNKNOWN }; // Backing store for deep copy
+
+        std::vector<ProxyImage>                proxy_images;
+        std::vector<XrSwapchainImageVulkanKHR> replay_images;
+        std::vector<VkCommandBuffer>           transfer_commandbuffer; // Indexed by replay image index
+        VkCommandPool                          command_pool = VK_NULL_HANDLE;
     };
+
+    struct SwapchainGraphicsInfo
+    {
+        GraphicsBindingType                type = GraphicsBindingType::kUnknown;
+        std::optional<VulkanSwapchainInfo> vulkan_info;
+    };
+    struct VulkanGraphicsBinding : public XrGraphicsBindingVulkanKHR
+    {
+        VulkanGraphicsBinding(VulkanReplayConsumerBase& vulkan_consumer, const Decoded_XrGraphicsBindingVulkanKHR& xr);
+        VulkanReplayConsumerBase*          vulkan_consumer = nullptr;
+        const encode::VulkanInstanceTable* instance_table{ nullptr };
+        const encode::VulkanDeviceTable*   device_table{ nullptr };
+        format::HandleId                   instance_id{ format::kNullHandleId };
+        format::HandleId                   physicalDevice_id{ format::kNullHandleId };
+        format::HandleId                   device_id{ format::kNullHandleId };
+        VkQueue                            queue = VK_NULL_HANDLE;
+
+        XrResult ResetCommandBuffer(VulkanSwapchainInfo::ProxyImage& proxy) const;
+    };
+
+    class GraphicsBinding
+    {
+      public:
+        GraphicsBinding() : type(GraphicsBindingType::kUnknown){};
+        GraphicsBinding(VulkanGraphicsBinding& binding) : type(GraphicsBindingType::kVulkan)
+        {
+            vulkan_binding.emplace(binding);
+        }
+        GraphicsBindingType GetType() const { return type; }
+        bool                IsValid() const { return type != GraphicsBindingType::kUnknown; }
+        bool                IsVulkan() const { return type != GraphicsBindingType::kVulkan; }
+
+        const VulkanGraphicsBinding& GetVulkanBinding() const
+        {
+            assert(type == GraphicsBindingType::kVulkan);
+            assert(vulkan_binding.has_value());
+            return *vulkan_binding;
+        }
+
+      private:
+        GraphicsBindingType type;
+
+        // NOTE: Add other supported bindings here
+        std::optional<VulkanGraphicsBinding> vulkan_binding;
+    };
+
+    GraphicsBinding MakeGraphicsBinding(Decoded_XrSessionCreateInfo* create_info);
+
+    class SessionData
+    {
+      public:
+        bool                   AddGraphicsBinding(GraphicsBinding& binding);
+        const GraphicsBinding& GetGraphicsBinding() const { return graphics_binding_; }
+
+        void   AddReferenceSpaces(const std::vector<XrReferenceSpaceType>& replay_spaces);
+        void   SetDisplayTime(const XrTime& predicted) { last_display_time_ = predicted; }
+        XrTime GetDisplayTime() const { return last_display_time_; }
+
+      protected:
+        ReferenceSpaceSet reference_spaces_;
+        XrTime            last_display_time_ = XrTime();
+
+        // These are the replay handles
+        GraphicsBinding graphics_binding_;
+    };
+    using SessionDataMap = std::unordered_map<XrSession, SessionData>;
+
+    class SwapchainData
+    {
+      public:
+        void
+        InitSwapchainData(const GraphicsBinding& binding, const XrSwapchainCreateInfo& info, XrSwapchain replay_handle);
+        XrResult EnumerateReplaySwapchain();
+        XrResult InitVirtualSwapchain(PointerDecoder<uint32_t>*                                 imageCountOutput,
+                                      StructPointerDecoder<Decoded_XrSwapchainImageBaseHeader>* capture_images);
+        XrResult InitVirtualSwapchain(PointerDecoder<uint32_t>*                                imageCountOutput,
+                                      StructPointerDecoder<Decoded_XrSwapchainImageVulkanKHR>* vk_capture_images);
+        XrResult AcquireSwapchainImage(uint32_t capture_index, uint32_t replay_index);
+        XrResult ReleaseSwapchainImage(StructPointerDecoder<Decoded_XrSwapchainImageReleaseInfo>* releaseInfo);
+        void     WaitedWithoutTimeout();
+
+      protected:
+        static void MapVulkanSwapchainImageFlags(XrSwapchainUsageFlags xr_flags, VkImageCreateInfo& info);
+        XrResult    InitSwapchainData(const XrSwapchainCreateInfo& xr_info, VulkanSwapchainInfo& vk_info);
+        XrResult AcquireSwapchainImage(uint32_t capture_index, uint32_t replay_index, VulkanSwapchainInfo& swap_info);
+        XrResult ReleaseSwapchainImage(StructPointerDecoder<Decoded_XrSwapchainImageReleaseInfo>* releaseInfo,
+                                       VulkanSwapchainInfo&                                       swap_info);
+
+        XrSwapchainCreateInfo                  create_info;
+        std::unordered_map<uint32_t, uint32_t> capture_to_replay_map_;
+        std::deque<uint32_t>                   acquire_release_fifo_;
+        SwapchainGraphicsInfo                  swapchain_graphics_info_;
+        const GraphicsBinding*                 graphics_binding_ = nullptr;
+        XrSwapchain                            replay_handle_    = XR_NULL_HANDLE; // handy to keep a copy here
+    };
+    using SwapchainDataMap = std::unordered_map<XrSwapchain, SwapchainData>;
 
     template <typename Handle, typename DataMap>
-    static void AddHandleData(Handle handle, DataMap& data_map)
+    static typename DataMap::iterator AddHandleData(Handle handle, DataMap& data_map)
     {
         auto insert_info = data_map.insert(std::make_pair(handle, typename DataMap::mapped_type()));
         assert(insert_info.second);
+        return insert_info.first;
     }
 
     template <typename Handle, typename DataMap, typename Data = typename DataMap::mapped_type>
@@ -239,16 +366,16 @@ class OpenXrReplayConsumer : public OpenXrConsumer
         return find_it->second;
     }
 
-    void AddSessionData(XrSession session) { AddHandleData(session, session_data_); }
-    void AddSwapchainData(XrSwapchain swapchain) { AddHandleData(swapchain, swapchain_data_); }
+    SessionData&   AddSessionData(XrSession session) { return AddHandleData(session, session_data_)->second; }
+    SwapchainData& AddSwapchainData(XrSwapchain swapchain) { return AddHandleData(swapchain, swapchain_data_)->second; }
 
     SessionData&   GetSessionData(XrSession session) { return GetHandleData(session, session_data_); }
     SwapchainData& GetSwapchainData(XrSwapchain swapchain) { return GetHandleData(swapchain, swapchain_data_); }
 
     VulkanReplayConsumerBase* vulkan_replay_consumer_ = nullptr;
 
-    std::unordered_map<XrSession, SessionData>     session_data_;
-    std::unordered_map<XrSwapchain, SwapchainData> swapchain_data_;
+    SessionDataMap   session_data_;
+    SwapchainDataMap swapchain_data_;
 };
 
 GFXRECON_END_NAMESPACE(decode)
