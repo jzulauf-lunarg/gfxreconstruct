@@ -1070,6 +1070,27 @@ const encode::VulkanDeviceTable* VulkanReplayConsumerBase::GetDeviceTable(const 
     return (table != device_tables_.end()) ? &table->second : nullptr;
 }
 
+void VulkanReplayConsumerBase::ImportPhysicalDevice(format::HandleId vk_instance,
+                                                    format::HandleId vk_physical_device,
+                                                    VkPhysicalDevice replay_physical_device)
+{
+    PhysicalDeviceInfo* known_physical_device = GetObjectInfoTable().GetPhysicalDeviceInfo(vk_physical_device);
+    if (known_physical_device)
+    {
+        return; // We've already enumerated (at least) this physical device
+    }
+
+    InstanceInfo*       instance_info = GetObjectInfoTable().GetInstanceInfo(vk_instance);
+    PhysicalDeviceInfo  device_info;
+    PhysicalDeviceInfo* device_infos = &device_info;
+    InitPhysicalDeviceInfos(instance_info, 1, &vk_physical_device, 1, &replay_physical_device, &device_infos);
+    AddHandle<PhysicalDeviceInfo>(vk_instance,
+                                  &vk_physical_device,
+                                  &replay_physical_device,
+                                  std::move(device_info),
+                                  &VulkanObjectInfoTable::AddPhysicalDeviceInfo);
+}
+
 void* VulkanReplayConsumerBase::PreProcessExternalObject(uint64_t          object_id,
                                                          format::ApiCallId call_id,
                                                          const char*       call_name)
@@ -2768,7 +2789,16 @@ VulkanReplayConsumerBase::OverrideEnumeratePhysicalDevices(PFN_vkEnumeratePhysic
         uint32_t                replay_device_count  = (*replay_device_count_ptr);
         uint32_t                capture_device_count = (*pPhysicalDeviceCount->GetPointer());
         const format::HandleId* capture_devices      = pPhysicalDevices->GetPointer();
+        PhysicalDeviceInfo**    physical_device_infos =
+            reinterpret_cast<PhysicalDeviceInfo**>(pPhysicalDevices->GetConsumerDataStore());
 
+        InitPhysicalDeviceInfos(instance_info,
+                                capture_device_count,
+                                capture_devices,
+                                replay_device_count,
+                                replay_devices,
+                                physical_device_infos);
+#if 0
         SetInstancePhysicalDeviceEntries(
             instance_info, capture_device_count, capture_devices, replay_device_count, replay_devices);
 
@@ -2799,9 +2829,52 @@ VulkanReplayConsumerBase::OverrideEnumeratePhysicalDevices(PFN_vkEnumeratePhysic
                 object_info_table_.AddPhysicalDeviceInfo(std::move(overflow_info));
             }
         }
+#endif
     }
 
     return result;
+}
+
+void VulkanReplayConsumerBase::InitPhysicalDeviceInfos(InstanceInfo*           instance_info,
+                                                       uint32_t                capture_device_count,
+                                                       const format::HandleId* capture_devices,
+                                                       uint32_t                replay_device_count,
+                                                       VkPhysicalDevice*       replay_devices,
+                                                       PhysicalDeviceInfo**    physical_device_infos)
+{
+
+    VkInstance instance = instance_info->handle;
+
+    SetInstancePhysicalDeviceEntries(
+        instance_info, capture_device_count, capture_devices, replay_device_count, replay_devices);
+
+    for (uint32_t i = 0; i < replay_device_count; ++i)
+    {
+        auto physical_device_info = physical_device_infos[i];
+        assert(physical_device_info != nullptr);
+
+        SetPhysicalDeviceInstanceInfo(instance_info, physical_device_info, replay_devices[i]);
+    }
+
+    if ((replay_device_count > 0) && (replay_device_count < capture_device_count))
+    {
+        // Make sure all of the capture physical device IDs map to a valid replay physical device handle.
+        // The generated code will only add handle mappings for handles returned by vkEnumeratePhysicalDevices on
+        // replay, so we add mappings for the handle IDs without matching devices here.
+        VkPhysicalDevice overflow_device = replay_devices[0];
+
+        for (uint32_t i = replay_device_count; i < capture_device_count; ++i)
+        {
+            PhysicalDeviceInfo overflow_info;
+
+            overflow_info.handle     = overflow_device;
+            overflow_info.capture_id = capture_devices[i];
+            overflow_info.parent_id  = instance_info->capture_id;
+            SetPhysicalDeviceInstanceInfo(instance_info, &overflow_info, overflow_device);
+
+            object_info_table_.AddPhysicalDeviceInfo(std::move(overflow_info));
+        }
+    }
 }
 
 VkResult VulkanReplayConsumerBase::OverrideEnumeratePhysicalDeviceGroups(

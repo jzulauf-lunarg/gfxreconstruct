@@ -211,7 +211,7 @@ void OpenXrReplayConsumer::Process_xrGetSystem(const ApiCallInfo&               
                                                XrResult                                       returnValue,
                                                format::HandleId                               instance,
                                                StructPointerDecoder<Decoded_XrSystemGetInfo>* getInfo,
-                                               PointerDecoder<XrSystemId>*                    systemId)
+                                               HandlePointerDecoder<XrSystemId>*              systemId)
 {
     // WIP: Properly log and handle this
     assert(systemId->GetPointer());
@@ -278,17 +278,20 @@ void OpenXrReplayConsumer::Process_xrGetVulkanGraphicsDeviceKHR(
     auto*      instance_info      = GetMappingInfo(instance, instance_info_map_);
     auto*      system_id_info     = GetMappingInfo(systemId, system_id_info_map_);
     VkInstance replay_vk_instance = vulkan_replay_consumer_->MapInstance(vkInstance);
+    const format::HandleId* capture_device     = vkPhysicalDevice->GetPointer();
 
     // WIP: Properly log and handle this
     assert(instance_info);
     assert(system_id_info);
     assert(replay_vk_instance != VK_NULL_HANDLE);
+    assert(capture_device);
 
     // Set up the output
     if (!vkPhysicalDevice->IsNull())
     {
         vkPhysicalDevice->SetHandleLength(1);
     }
+
     VkPhysicalDevice* replay_device = vkPhysicalDevice->GetHandlePointer();
 
     // WIP: Build a table of commonly used extension entry points
@@ -302,6 +305,7 @@ void OpenXrReplayConsumer::Process_xrGetVulkanGraphicsDeviceKHR(
     // Create result mapping
     if (result >= 0)
     {
+        vulkan_replay_consumer_->ImportPhysicalDevice(vkInstance, *capture_device, *replay_device);
         // Create the mapping between the recorded and replay instance handles
         AddHandleMapping(format::kNullHandleId, *vkPhysicalDevice, vk_physical_device_info_map_);
     }

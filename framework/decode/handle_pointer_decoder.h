@@ -105,6 +105,7 @@ class HandlePointerDecoder
 
         return consumer_data;
     }
+    void** GetConsumerDataStore() const { return consumer_data_; }
 
     void SetConsumerData(size_t index, void* consumer_data)
     {

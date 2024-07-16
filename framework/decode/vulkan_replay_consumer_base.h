@@ -222,6 +222,10 @@ class VulkanReplayConsumerBase : public VulkanConsumer
         AddHandle<ImageInfo>(parent_id, &id, &handle, std::move(initial_info), &VulkanObjectInfoTable::AddImageInfo);
     }
 
+    void ImportPhysicalDevice(format::HandleId vk_instance,
+                              format::HandleId vk_physical_device,
+                              VkPhysicalDevice replay_physical_device);
+
   protected:
     const VulkanObjectInfoTable& GetObjectInfoTable() const { return object_info_table_; }
 
@@ -475,6 +479,13 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                                               InstanceInfo*                           instance_info,
                                               PointerDecoder<uint32_t>*               pPhysicalDeviceCount,
                                               HandlePointerDecoder<VkPhysicalDevice>* pPhysicalDevices);
+
+    void InitPhysicalDeviceInfos(InstanceInfo*           instance_info,
+                                 uint32_t                capture_device_count,
+                                 const format::HandleId* capture_devices,
+                                 uint32_t                replay_device_count,
+                                 VkPhysicalDevice*       replay_devices,
+                                 PhysicalDeviceInfo**    physical_device_infos);
 
     VkResult OverrideEnumeratePhysicalDeviceGroups(
         PFN_vkEnumeratePhysicalDeviceGroups                            func,
