@@ -2486,7 +2486,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetVulkanGraphicsDeviceKHR(
 
     if (result >= 0)
     {
-        openxr_wrappers::CreateWrappedHandle<openxr_wrappers::InstanceWrapper, openxr_wrappers::SystemIdWrapper, vulkan_wrappers::PhysicalDeviceWrapper>(instance, systemId, vkPhysicalDevice, OpenXrCaptureManager::GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::InstanceWrapper, vulkan_wrappers::NoParentWrapper, vulkan_wrappers::PhysicalDeviceWrapper>(vkInstance, vulkan_wrappers::NoParentWrapper::kHandleValue, vkPhysicalDevice, OpenXrCaptureManager::GetUniqueId);
     }
     else
     {
@@ -2875,7 +2875,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateVulkanInstanceKHR(
 
     if (result >= 0)
     {
-        openxr_wrappers::CreateWrappedHandle<openxr_wrappers::InstanceWrapper, openxr_wrappers::NoParentWrapper, vulkan_wrappers::InstanceWrapper>(instance, openxr_wrappers::NoParentWrapper::kHandleValue, vulkanInstance, OpenXrCaptureManager::GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::NoParentWrapper, vulkan_wrappers::NoParentWrapper, vulkan_wrappers::InstanceWrapper>(vulkan_wrappers::NoParentWrapper::kHandleValue, vulkan_wrappers::NoParentWrapper::kHandleValue, vulkanInstance, OpenXrCaptureManager::GetUniqueId);
     }
     else
     {
@@ -2929,7 +2929,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateVulkanDeviceKHR(
 
     if (result >= 0)
     {
-        openxr_wrappers::CreateWrappedHandle<openxr_wrappers::InstanceWrapper, openxr_wrappers::NoParentWrapper, vulkan_wrappers::DeviceWrapper>(instance, openxr_wrappers::NoParentWrapper::kHandleValue, vulkanDevice, OpenXrCaptureManager::GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::PhysicalDeviceWrapper, vulkan_wrappers::NoParentWrapper, vulkan_wrappers::DeviceWrapper>(VK_NULL_HANDLE, vulkan_wrappers::NoParentWrapper::kHandleValue, vulkanDevice, OpenXrCaptureManager::GetUniqueId);
     }
     else
     {
@@ -2982,7 +2982,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetVulkanGraphicsDevice2KHR(
 
     if (result >= 0)
     {
-        openxr_wrappers::CreateWrappedHandle<openxr_wrappers::InstanceWrapper, openxr_wrappers::NoParentWrapper, vulkan_wrappers::PhysicalDeviceWrapper>(instance, openxr_wrappers::NoParentWrapper::kHandleValue, vulkanPhysicalDevice, OpenXrCaptureManager::GetUniqueId);
+        vulkan_wrappers::CreateWrappedHandle<vulkan_wrappers::InstanceWrapper, vulkan_wrappers::NoParentWrapper, vulkan_wrappers::PhysicalDeviceWrapper>(VK_NULL_HANDLE, vulkan_wrappers::NoParentWrapper::kHandleValue, vulkanPhysicalDevice, OpenXrCaptureManager::GetUniqueId);
     }
     else
     {
