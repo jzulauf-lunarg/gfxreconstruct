@@ -584,51 +584,85 @@ class OpenXrApiCallEncodersBodyGenerator(BaseGenerator):
 
     def make_handle_wrapping(self, values, indent):
         expr = ''
+
+        # Support for non OpenXr graphics bindings
+        vulkan_handles = { 'NoParentWrapper': 'NoParentWrapper::kHandleValue' }
+        vulkan_parent = {
+            'VkInstance': 'NoParentWrapper',
+            'VkPhysicalDevice': 'VkInstance',
+            'VkDevice': 'VkPhysicalDevice'
+        }
+
+        vulkan_co_parent = 'NoParentWrapper'
+        # all vulkan co_parents of interest are "NoParent"
+
         for value in values:
+            # Need to track graphics bindings handles
+            if value.base_type.startswith('Vk'): 
+                vulkan_handles[value.base_type] = value.name
+ 
             if self.is_output_parameter(value) and (
                 self.need_wrapping(value.base_type) or (
                     self.is_struct(value.base_type) and
                     (value.base_type in self.structs_with_handles)
                 )
             ):
-                parent_prefix = 'openxr_wrappers::'
-                co_parent_prefix = 'openxr_wrappers::'
-                temp_prefix = self.get_wrapper_prefix_from_type(
-                    values[0].base_type
-                )
+                # Both OpenXr and supported graphics bindings handles may be present
+                co_parent_value_type = None
+                co_parent_is_output = False
+                if value.base_type.startswith('Vk'): 
+                    default_prefix = 'vulkan_wrappers::'
+                    parent_value_type = vulkan_parent[value.base_type]
+                    if parent_value_type in vulkan_handles:    
+                        parent_value_name = vulkan_handles[parent_value_type]
+                    else:
+                        # This is the behavior of VulkanCaptureManager::InitVkDevice for creating a VkDevice from an unspecified physical device
+                        parent_value_name = 'VK_NULL_HANDLE'
+                else:
+                    default_prefix = 'openxr_wrappers::'
+                    parent_value_type = values[0].base_type
+                    parent_value_name = values[0].name
+                    if values[1] is not None:
+                        co_parent_value_type = values[1].base_type
+                        co_parent_value_name = values[1].name
+                        co_parent_is_output = self.is_output_parameter(values[1])
+                        
+                # Determine prefixes
+                parent_prefix = default_prefix
+                co_parent_prefix = default_prefix
+                temp_prefix = self.get_wrapper_prefix_from_type(parent_value_type)
+
                 if temp_prefix != 'UNKNOWN_WRAPPERS':
                     parent_prefix = temp_prefix + '::'
 
-                if values[1] is not None:
-                    temp_prefix = self.get_wrapper_prefix_from_type(
-                        values[1].base_type
-                    )
+                if  co_parent_value_type is not None:
+                    temp_prefix = self.get_wrapper_prefix_from_type(co_parent_value_type)
                     if temp_prefix != 'UNKNOWN_WRAPPERS':
                         co_parent_prefix = temp_prefix + '::'
+                else:
+                    co_parent_prefix = parent_prefix
+
+                wrapper_prefix = self.get_wrapper_prefix_from_type(
+                    value.base_type
+                )
 
                 # The VkInstance handle does not have parent, so the 'unused'
                 # values will be provided to the wrapper creation function.
                 parent_type = parent_prefix + 'NoParentWrapper'
                 parent_value = parent_prefix + 'NoParentWrapper::kHandleValue'
-                if self.need_wrapping(values[0].base_type):
-                    parent_type = self.get_handle_wrapper(values[0].base_type)
-                    parent_value = values[0].name
+                if self.need_wrapping(parent_value_type):
+                    parent_type = self.get_handle_wrapper(parent_value_type)
+                    parent_value = parent_value_name
 
                 # Some handles have two parent handles, such as swapchain images and display modes,
                 # or command buffers and descriptor sets allocated from pools.
                 co_parent_type = co_parent_prefix + 'NoParentWrapper'
                 co_parent_value = co_parent_prefix + 'NoParentWrapper::kHandleValue'
-                if self.need_wrapping(
-                    values[1].base_type
-                ) and not self.is_output_parameter(values[1]):
-                    co_parent_type = self.get_handle_wrapper(
-                        values[1].base_type
-                    )
-                    co_parent_value = values[1].name
+                if co_parent_value_type is not None:
+                    if self.need_wrapping(co_parent_value_type) and not co_parent_is_output:
+                        co_parent_type = self.get_handle_wrapper(co_parent_value_type)
+                        co_parent_value = co_parent_value_name
 
-                wrapper_prefix = self.get_wrapper_prefix_from_type(
-                    value.base_type
-                )
 
                 if value.is_array:
                     length_name = value.array_length
