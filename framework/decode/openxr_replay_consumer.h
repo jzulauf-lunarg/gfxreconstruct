@@ -188,7 +188,7 @@ class OpenXrReplayConsumer : public OpenXrConsumer
     HandleMap<XrSession>        session_info_map_;
     HandleMap<XrSwapchain>      swapchain_info_map_;
     ValueMap<XrSystemId>        system_id_info_map_;
-    HandleMap<VkPhysicalDevice> vk_physical_device_info_map_;
+    HandleMap<VkPhysicalDevice> vk_physical_device_info_map_; // This is the wrapped physical device handle
     HandleMap<XrSpace>          space_info_map_;
 
     // TODO: Should DRY the handle remapping code with the Vulkan side at least.
@@ -283,7 +283,7 @@ class OpenXrReplayConsumer : public OpenXrConsumer
         }
         GraphicsBindingType GetType() const { return type; }
         bool                IsValid() const { return type != GraphicsBindingType::kUnknown; }
-        bool                IsVulkan() const { return type != GraphicsBindingType::kVulkan; }
+        bool                IsVulkan() const { return type == GraphicsBindingType::kVulkan; }
 
         const VulkanGraphicsBinding& GetVulkanBinding() const
         {

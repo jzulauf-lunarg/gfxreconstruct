@@ -877,6 +877,10 @@ void OpenXrReplayConsumer::MapStructHandles(Decoded_XrGraphicsBindingVulkanKHR* 
 
     value->instance       = vulkan_replay_consumer_->MapInstance(wrapper->instance);
     value->device         = vulkan_replay_consumer_->MapDevice(wrapper->device);
+    // Note: Xr has a different mapping for the physical device, because at record time the Vulkan
+    //       encoder handle id maps to the *unwrapped* VkPhysicalDevice value, thus at
+    //       replay the handle id Xr gets is the one correlated to the *wrapped* physical device and we
+    //       are stuck with two different handle id's in the replay for the same object
     value->physicalDevice = GetMappingInfo(wrapper->physicalDevice, vk_physical_device_info_map_)->handle;
 }
 
@@ -1422,7 +1426,7 @@ XrResult OpenXrReplayConsumer::VulkanGraphicsBinding::ResetCommandBuffer(VulkanS
     uint32_t kTimeout  = std::numeric_limits<uint32_t>::max(); // WIP: Better timeout and timeout reporting
     VkResult vk_result = device_table->WaitForFences(device, 1, &proxy.cb_fence, VK_TRUE, kTimeout);
 
-    if (vk_result == VK_SUCCESS)
+    if (vk_result != VK_SUCCESS)
     {
         xr_result = XR_ERROR_RUNTIME_FAILURE;
 

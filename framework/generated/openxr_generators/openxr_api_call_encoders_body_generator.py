@@ -252,6 +252,12 @@ class OpenXrApiCallEncodersBodyGenerator(BaseGenerator):
                         ]
                     )
 
+                # Allow customization that is unlocked and validly reentrant
+                body += indent + 'CustomEncoderPreCall<format::ApiCallId::ApiCall_{}>::PreLockReentrant({}, {});\n'.format(
+                    name, capture_manager, arg_list
+                )
+
+
                 body += indent + 'CommonCaptureManager::CaptureMode save_capture_mode;\n'
                 top_indent = indent + ' ' * self.INDENT_SIZE
                 body += indent + '{\n'
