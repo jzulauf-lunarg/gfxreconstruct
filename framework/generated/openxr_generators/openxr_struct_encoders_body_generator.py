@@ -154,9 +154,7 @@ class OpenXrStructEncodersBodyGenerator(BaseGenerator):
             if struct in self.base_header_structs:
                 body += self.make_child_struct_cast_switch(struct, value_name)
             else:
-                body += self.make_struct_body(
-                    struct, feature_struct_members[struct], value_ref
-            )
+                body += self.make_struct_body(struct, feature_struct_members[struct], value_ref)
             body += '}'
             write(body, file=self.outFile)
 

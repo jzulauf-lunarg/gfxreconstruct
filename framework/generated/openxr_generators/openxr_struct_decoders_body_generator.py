@@ -68,11 +68,12 @@ class OpenXrStructDecodersBodyGenerator(
             self,
             process_cmds=False,
             process_structs=True,
-            feature_break=True,
+            feature_break=False,
             err_file=err_file,
             warn_file=warn_file,
             diag_file=diag_file
         )
+        self.all_feature_struct_members = []
 
     def beginFile(self, gen_opts):
         """Method override."""
@@ -101,6 +102,9 @@ class OpenXrStructDecodersBodyGenerator(
 
     def endFile(self):
         """Method override."""
+        for feature_struct_members in self.all_feature_struct_members:
+            self.generate_decode_struct_bodies(feature_struct_members)
+
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
@@ -113,3 +117,55 @@ class OpenXrStructDecodersBodyGenerator(
         if self.feature_struct_members:
             return True
         return False
+
+    def generate_feature(self):
+        """Gather up struct names for processing deferred to endFile"""
+        self.all_feature_struct_members.append(self.feature_struct_members)
+
+    def generate_decode_struct_bodies(self, feature_struct_members):
+        """Performs C++ code generation for the feature."""
+
+        for struct in [ key for key in feature_struct_members if not self.is_struct_black_listed(key)]:
+            body = '\n' 
+            body += self.make_decode_struct_preamble(struct)
+            if struct in self.base_header_structs:
+                body += self.make_decode_child_struct_cast_switch(struct)
+            else:
+                body += self.make_decode_struct_body(struct, feature_struct_members[struct])
+ 
+            body += self.make_decode_struct_epilog(struct)
+            write(body, file=self.outFile)
+
+    def make_decode_child_struct_cast_switch(self, base_struct):
+        """ Base structs are abstract, need to case to specific child struct based on type """
+        indent = '    '
+        indent2 = indent + indent
+        indent3 = indent2 + indent
+
+        body = ''
+        body += f'{indent}// Cast and call the appropriate encoder based on the structure type\n'
+        body += f'{indent}// Peek the structure type\n'
+        body += f'{indent}ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));\n'
+
+        body += f'{indent}switch(value->type)\n'
+
+        body += f'{indent}{{\n'
+        body += f'{indent2}default:\n'
+        body += f'{indent2}{{\n'
+        body += f'{indent3}GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);\n'
+        body += f'{indent3}break;\n'
+        body += f'{indent2}}}\n'
+
+        for child_struct in self.base_header_structs[base_struct]:
+            struct_type_name = self.struct_type_enums[child_struct]
+            body += f'{indent2}case {struct_type_name}:\n'
+            body += f'{indent2}{{\n'
+            body += f'{indent3}Decoded_{child_struct}* child_wrapper = reinterpret_cast<Decoded_{child_struct}*>(wrapper);\n'
+            body += f'{indent3}bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);\n'
+            body += f'{indent3}break;\n'
+            body += f'{indent2}}}\n'
+ 
+        body += f'{indent}}}\n'
+        return body
+
+

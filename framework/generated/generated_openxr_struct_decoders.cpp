@@ -442,9 +442,47 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrSwapcha
     size_t bytes_read = 0;
     XrSwapchainImageBaseHeader* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR:
+        {
+            Decoded_XrSwapchainImageOpenGLKHR* child_wrapper = reinterpret_cast<Decoded_XrSwapchainImageOpenGLKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR:
+        {
+            Decoded_XrSwapchainImageOpenGLESKHR* child_wrapper = reinterpret_cast<Decoded_XrSwapchainImageOpenGLESKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR:
+        {
+            Decoded_XrSwapchainImageVulkanKHR* child_wrapper = reinterpret_cast<Decoded_XrSwapchainImageVulkanKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR:
+        {
+            Decoded_XrSwapchainImageD3D11KHR* child_wrapper = reinterpret_cast<Decoded_XrSwapchainImageD3D11KHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR:
+        {
+            Decoded_XrSwapchainImageD3D12KHR* child_wrapper = reinterpret_cast<Decoded_XrSwapchainImageD3D12KHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -559,12 +597,59 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrComposi
     size_t bytes_read = 0;
     XrCompositionLayerBaseHeader* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
-    bytes_read += ValueDecoder::DecodeFlags64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->layerFlags));
-    bytes_read += ValueDecoder::DecodeHandleIdValue((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->space));
-    value->space = XR_NULL_HANDLE;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_PROJECTION:
+        {
+            Decoded_XrCompositionLayerProjection* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerProjection*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_QUAD:
+        {
+            Decoded_XrCompositionLayerQuad* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerQuad*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_CUBE_KHR:
+        {
+            Decoded_XrCompositionLayerCubeKHR* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerCubeKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_CYLINDER_KHR:
+        {
+            Decoded_XrCompositionLayerCylinderKHR* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerCylinderKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_EQUIRECT_KHR:
+        {
+            Decoded_XrCompositionLayerEquirectKHR* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerEquirectKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_EQUIRECT2_KHR:
+        {
+            Decoded_XrCompositionLayerEquirect2KHR* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerEquirect2KHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_HTC:
+        {
+            Decoded_XrCompositionLayerPassthroughHTC* child_wrapper = reinterpret_cast<Decoded_XrCompositionLayerPassthroughHTC*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -939,9 +1024,35 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrHapticB
     size_t bytes_read = 0;
     XrHapticBaseHeader* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_HAPTIC_VIBRATION:
+        {
+            Decoded_XrHapticVibration* child_wrapper = reinterpret_cast<Decoded_XrHapticVibration*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_HAPTIC_AMPLITUDE_ENVELOPE_VIBRATION_FB:
+        {
+            Decoded_XrHapticAmplitudeEnvelopeVibrationFB* child_wrapper = reinterpret_cast<Decoded_XrHapticAmplitudeEnvelopeVibrationFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_HAPTIC_PCM_VIBRATION_FB:
+        {
+            Decoded_XrHapticPcmVibrationFB* child_wrapper = reinterpret_cast<Decoded_XrHapticPcmVibrationFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -1084,9 +1195,149 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrEventDa
     size_t bytes_read = 0;
     XrEventDataBaseHeader* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_EVENTS_LOST:
+        {
+            Decoded_XrEventDataEventsLost* child_wrapper = reinterpret_cast<Decoded_XrEventDataEventsLost*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
+        {
+            Decoded_XrEventDataInstanceLossPending* child_wrapper = reinterpret_cast<Decoded_XrEventDataInstanceLossPending*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
+        {
+            Decoded_XrEventDataSessionStateChanged* child_wrapper = reinterpret_cast<Decoded_XrEventDataSessionStateChanged*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
+        {
+            Decoded_XrEventDataReferenceSpaceChangePending* child_wrapper = reinterpret_cast<Decoded_XrEventDataReferenceSpaceChangePending*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+        {
+            Decoded_XrEventDataInteractionProfileChanged* child_wrapper = reinterpret_cast<Decoded_XrEventDataInteractionProfileChanged*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
+        {
+            Decoded_XrEventDataVisibilityMaskChangedKHR* child_wrapper = reinterpret_cast<Decoded_XrEventDataVisibilityMaskChangedKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_PERF_SETTINGS_EXT:
+        {
+            Decoded_XrEventDataPerfSettingsEXT* child_wrapper = reinterpret_cast<Decoded_XrEventDataPerfSettingsEXT*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_MAIN_SESSION_VISIBILITY_CHANGED_EXTX:
+        {
+            Decoded_XrEventDataMainSessionVisibilityChangedEXTX* child_wrapper = reinterpret_cast<Decoded_XrEventDataMainSessionVisibilityChangedEXTX*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_DISPLAY_REFRESH_RATE_CHANGED_FB:
+        {
+            Decoded_XrEventDataDisplayRefreshRateChangedFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataDisplayRefreshRateChangedFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_VIVE_TRACKER_CONNECTED_HTCX:
+        {
+            Decoded_XrEventDataViveTrackerConnectedHTCX* child_wrapper = reinterpret_cast<Decoded_XrEventDataViveTrackerConnectedHTCX*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPATIAL_ANCHOR_CREATE_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpatialAnchorCreateCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpatialAnchorCreateCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_SET_STATUS_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpaceSetStatusCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceSetStatusCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_MARKER_TRACKING_UPDATE_VARJO:
+        {
+            Decoded_XrEventDataMarkerTrackingUpdateVARJO* child_wrapper = reinterpret_cast<Decoded_XrEventDataMarkerTrackingUpdateVARJO*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_LOCALIZATION_CHANGED_ML:
+        {
+            Decoded_XrEventDataLocalizationChangedML* child_wrapper = reinterpret_cast<Decoded_XrEventDataLocalizationChangedML*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_QUERY_RESULTS_AVAILABLE_FB:
+        {
+            Decoded_XrEventDataSpaceQueryResultsAvailableFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceQueryResultsAvailableFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_QUERY_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpaceQueryCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceQueryCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_SAVE_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpaceSaveCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceSaveCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_ERASE_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpaceEraseCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceEraseCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_SHARE_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpaceShareCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceShareCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_SPACE_LIST_SAVE_COMPLETE_FB:
+        {
+            Decoded_XrEventDataSpaceListSaveCompleteFB* child_wrapper = reinterpret_cast<Decoded_XrEventDataSpaceListSaveCompleteFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_HEADSET_FIT_CHANGED_ML:
+        {
+            Decoded_XrEventDataHeadsetFitChangedML* child_wrapper = reinterpret_cast<Decoded_XrEventDataHeadsetFitChangedML*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_EYE_CALIBRATION_CHANGED_ML:
+        {
+            Decoded_XrEventDataEyeCalibrationChangedML* child_wrapper = reinterpret_cast<Decoded_XrEventDataEyeCalibrationChangedML*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -1835,9 +2086,23 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrLoaderI
     size_t bytes_read = 0;
     XrLoaderInitInfoBaseHeaderKHR* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR:
+        {
+            Decoded_XrLoaderInitInfoAndroidKHR* child_wrapper = reinterpret_cast<Decoded_XrLoaderInitInfoAndroidKHR*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -1913,9 +2178,29 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrBinding
     size_t bytes_read = 0;
     XrBindingModificationBaseHeaderKHR* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_INTERACTION_PROFILE_DPAD_BINDING_EXT:
+        {
+            Decoded_XrInteractionProfileDpadBindingEXT* child_wrapper = reinterpret_cast<Decoded_XrInteractionProfileDpadBindingEXT*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_INTERACTION_PROFILE_ANALOG_THRESHOLD_VALVE:
+        {
+            Decoded_XrInteractionProfileAnalogThresholdVALVE* child_wrapper = reinterpret_cast<Decoded_XrInteractionProfileAnalogThresholdVALVE*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -2796,9 +3081,41 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrSwapcha
     size_t bytes_read = 0;
     XrSwapchainStateBaseHeaderFB* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB:
+        {
+            Decoded_XrSwapchainStateFoveationFB* child_wrapper = reinterpret_cast<Decoded_XrSwapchainStateFoveationFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_STATE_ANDROID_SURFACE_DIMENSIONS_FB:
+        {
+            Decoded_XrSwapchainStateAndroidSurfaceDimensionsFB* child_wrapper = reinterpret_cast<Decoded_XrSwapchainStateAndroidSurfaceDimensionsFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_STATE_SAMPLER_OPENGL_ES_FB:
+        {
+            Decoded_XrSwapchainStateSamplerOpenGLESFB* child_wrapper = reinterpret_cast<Decoded_XrSwapchainStateSamplerOpenGLESFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SWAPCHAIN_STATE_SAMPLER_VULKAN_FB:
+        {
+            Decoded_XrSwapchainStateSamplerVulkanFB* child_wrapper = reinterpret_cast<Decoded_XrSwapchainStateSamplerVulkanFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -4941,9 +5258,23 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrSpaceQu
     size_t bytes_read = 0;
     XrSpaceQueryInfoBaseHeaderFB* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_SPACE_QUERY_INFO_FB:
+        {
+            Decoded_XrSpaceQueryInfoFB* child_wrapper = reinterpret_cast<Decoded_XrSpaceQueryInfoFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }
@@ -4955,9 +5286,29 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_XrSpaceFi
     size_t bytes_read = 0;
     XrSpaceFilterInfoBaseHeaderFB* value = wrapper->decoded_value;
 
-    bytes_read += ValueDecoder::DecodeEnumValue((buffer + bytes_read), (buffer_size - bytes_read), &(value->type));
-    bytes_read += DecodeNextStruct((buffer + bytes_read), (buffer_size - bytes_read), &(wrapper->next));
-    value->next = wrapper->next ? wrapper->next->GetPointer() : nullptr;
+    // Cast and call the appropriate encoder based on the structure type
+    // Peek the structure type
+    ValueDecoder::DecodeEnumValue(buffer, buffer_size, &(value->type));
+    switch(value->type)
+    {
+        default:
+        {
+            GFXRECON_LOG_WARNING("DecodeStruct: unrecognized Base Header child structure type %d", value->type);
+            break;
+        }
+        case XR_TYPE_SPACE_UUID_FILTER_INFO_FB:
+        {
+            Decoded_XrSpaceUuidFilterInfoFB* child_wrapper = reinterpret_cast<Decoded_XrSpaceUuidFilterInfoFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+        case XR_TYPE_SPACE_COMPONENT_FILTER_INFO_FB:
+        {
+            Decoded_XrSpaceComponentFilterInfoFB* child_wrapper = reinterpret_cast<Decoded_XrSpaceComponentFilterInfoFB*>(wrapper);
+            bytes_read += DecodeStruct(buffer, buffer_size, child_wrapper);
+            break;
+        }
+    }
 
     return bytes_read;
 }

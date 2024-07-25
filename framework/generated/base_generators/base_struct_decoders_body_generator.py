@@ -32,24 +32,30 @@ class BaseStructDecodersBodyGenerator():
         first = True
         for struct in self.get_filtered_struct_names():
             body = '' if first else '\n'
-            body += 'size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_{}* wrapper)\n'.format(
-                struct
-            )
-            body += '{\n'
-            body += '    assert((wrapper != nullptr) && (wrapper->decoded_value != nullptr));\n'
-            body += '\n'
-            body += '    size_t bytes_read = 0;\n'
-            body += '    {}* value = wrapper->decoded_value;\n'.format(struct)
-            body += '\n'
-            body += self.make_decode_struct_body(
-                struct, self.feature_struct_members[struct]
-            )
-            body += '\n'
-            body += '    return bytes_read;\n'
-            body += '}'
+
+            body += self.make_decode_struct_preamble(struct)
+            body += self.make_decode_struct_body(struct, self.feature_struct_members[struct])
+            body += self.make_decode_struct_epilog(struct)
 
             write(body, file=self.outFile)
             first = False
+
+    def make_decode_struct_preamble(self, struct):
+        body = ''
+        body += 'size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_{}* wrapper)\n'.format(struct)
+        body += '{\n'
+        body += '    assert((wrapper != nullptr) && (wrapper->decoded_value != nullptr));\n'
+        body += '\n'
+        body += '    size_t bytes_read = 0;\n'
+        body += '    {}* value = wrapper->decoded_value;\n'.format(struct)
+        body += '\n'
+        return body
+
+    def make_decode_struct_epilog(self, struct):
+        body = '\n'
+        body += '    return bytes_read;\n'
+        body += '}'
+        return body
 
     def make_decode_struct_body(self, name, values):
         """Generate C++ code for the decoder method body."""
