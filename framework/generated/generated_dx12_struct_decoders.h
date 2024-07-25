@@ -56,6 +56,7 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
 
+
 struct Decoded_DXGI_FRAME_STATISTICS
 {
     using struct_type = DXGI_FRAME_STATISTICS;
@@ -2210,6 +2211,8 @@ struct Decoded__SECURITY_ATTRIBUTES
 
     uint64_t lpSecurityDescriptor{ 0 };
 };
+
+
 
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)
