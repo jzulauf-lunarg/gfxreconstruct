@@ -1226,6 +1226,12 @@ VKAPI_ATTR VkResult VKAPI_CALL CreateFence(
         encoder->EncodeVulkanHandlePtr<vulkan_wrappers::FenceWrapper>(pFence, omit_output_data);
         encoder->EncodeEnumValue(result);
         manager->EndCreateApiCallCapture<VkDevice, vulkan_wrappers::FenceWrapper, VkFenceCreateInfo>(result, device, pFence, pCreateInfo);
+
+#if ENABLE_OPENXR_SUPPORT
+        if (result == VK_SUCCESS) {
+            manager->AddValidFence(*pFence);
+        }
+#endif // ENABLE_OPENXR_SUPPORT
     }
 
     CustomEncoderPostCall<format::ApiCallId::ApiCall_vkCreateFence>::Dispatch(manager, result, device, pCreateInfo, pAllocator, pFence);
@@ -1251,6 +1257,10 @@ VKAPI_ATTR void VKAPI_CALL DestroyFence(
     {
         shared_api_call_lock = VulkanCaptureManager::AcquireSharedApiCallLock();
     }
+
+#if ENABLE_OPENXR_SUPPORT
+    manager->RemoveValidFence(fence);
+#endif
 
     CustomEncoderPreCall<format::ApiCallId::ApiCall_vkDestroyFence>::Dispatch(manager, device, fence, pAllocator);
 
@@ -1278,6 +1288,7 @@ VKAPI_ATTR VkResult VKAPI_CALL ResetFences(
 {
     VulkanCaptureManager* manager = VulkanCaptureManager::Get();
     GFXRECON_ASSERT(manager != nullptr);
+
     auto force_command_serialization = manager->GetForceCommandSerialization();
     std::shared_lock<CommonCaptureManager::ApiCallMutexT> shared_api_call_lock;
     std::unique_lock<CommonCaptureManager::ApiCallMutexT> exclusive_api_call_lock;
@@ -1290,21 +1301,32 @@ VKAPI_ATTR VkResult VKAPI_CALL ResetFences(
         shared_api_call_lock = VulkanCaptureManager::AcquireSharedApiCallLock();
     }
 
-    CustomEncoderPreCall<format::ApiCallId::ApiCall_vkResetFences>::Dispatch(manager, device, fenceCount, pFences);
+    VkResult result;
+#if ENABLE_OPENXR_SUPPORT
+    // TODO: Strip unknown fences instead of just downright not recording
+    // anything
+    if (manager->AreAllValidFences(fenceCount, pFences)) {
+#endif // ENABLE_OPENXR_SUPPORT
+        CustomEncoderPreCall<format::ApiCallId::ApiCall_vkResetFences>::Dispatch(manager, device, fenceCount, pFences);
 
-    VkResult result = vulkan_wrappers::GetDeviceTable(device)->ResetFences(device, fenceCount, pFences);
+        result = vulkan_wrappers::GetDeviceTable(device)->ResetFences(device, fenceCount, pFences);
 
-    auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkResetFences);
-    if (encoder)
-    {
-        encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
-        encoder->EncodeUInt32Value(fenceCount);
-        encoder->EncodeVulkanHandleArray<vulkan_wrappers::FenceWrapper>(pFences, fenceCount);
-        encoder->EncodeEnumValue(result);
-        manager->EndApiCallCapture();
+        auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkResetFences);
+        if (encoder)
+        {
+            encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
+            encoder->EncodeUInt32Value(fenceCount);
+            encoder->EncodeVulkanHandleArray<vulkan_wrappers::FenceWrapper>(pFences, fenceCount);
+            encoder->EncodeEnumValue(result);
+            manager->EndApiCallCapture();
+        }
+
+        CustomEncoderPostCall<format::ApiCallId::ApiCall_vkResetFences>::Dispatch(manager, result, device, fenceCount, pFences);
+#if ENABLE_OPENXR_SUPPORT
+    } else {
+        result = vulkan_wrappers::GetDeviceTable(device)->ResetFences(device, fenceCount, pFences);
     }
-
-    CustomEncoderPostCall<format::ApiCallId::ApiCall_vkResetFences>::Dispatch(manager, result, device, fenceCount, pFences);
+#endif // ENABLE_OPENXR_SUPPORT
 
     return result;
 }
@@ -1326,21 +1348,29 @@ VKAPI_ATTR VkResult VKAPI_CALL GetFenceStatus(
     {
         shared_api_call_lock = VulkanCaptureManager::AcquireSharedApiCallLock();
     }
+    VkResult result;
+#if ENABLE_OPENXR_SUPPORT
+    if (manager->IsValidFence(fence)) {
+#endif // ENABLE_OPENXR_SUPPORT
+        CustomEncoderPreCall<format::ApiCallId::ApiCall_vkGetFenceStatus>::Dispatch(manager, device, fence);
 
-    CustomEncoderPreCall<format::ApiCallId::ApiCall_vkGetFenceStatus>::Dispatch(manager, device, fence);
+        result = vulkan_wrappers::GetDeviceTable(device)->GetFenceStatus(device, fence);
 
-    VkResult result = vulkan_wrappers::GetDeviceTable(device)->GetFenceStatus(device, fence);
+        auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkGetFenceStatus);
+        if (encoder)
+        {
+            encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
+            encoder->EncodeVulkanHandleValue<vulkan_wrappers::FenceWrapper>(fence);
+            encoder->EncodeEnumValue(result);
+            manager->EndApiCallCapture();
+        }
 
-    auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkGetFenceStatus);
-    if (encoder)
-    {
-        encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
-        encoder->EncodeVulkanHandleValue<vulkan_wrappers::FenceWrapper>(fence);
-        encoder->EncodeEnumValue(result);
-        manager->EndApiCallCapture();
+        CustomEncoderPostCall<format::ApiCallId::ApiCall_vkGetFenceStatus>::Dispatch(manager, result, device, fence);
+#if ENABLE_OPENXR_SUPPORT
+    } else {
+        result = vulkan_wrappers::GetDeviceTable(device)->GetFenceStatus(device, fence);
     }
-
-    CustomEncoderPostCall<format::ApiCallId::ApiCall_vkGetFenceStatus>::Dispatch(manager, result, device, fence);
+#endif // ENABLE_OPENXR_SUPPORT
 
     return result;
 }
@@ -1366,23 +1396,34 @@ VKAPI_ATTR VkResult VKAPI_CALL WaitForFences(
         shared_api_call_lock = VulkanCaptureManager::AcquireSharedApiCallLock();
     }
 
-    CustomEncoderPreCall<format::ApiCallId::ApiCall_vkWaitForFences>::Dispatch(manager, device, fenceCount, pFences, waitAll, timeout);
+    VkResult result;
+#if ENABLE_OPENXR_SUPPORT
+    // TODO: Strip unknown fences instead of just downright not recording
+    // anything
+    if (manager->AreAllValidFences(fenceCount, pFences)) {
+#endif // ENABLE_OPENXR_SUPPORT
+        CustomEncoderPreCall<format::ApiCallId::ApiCall_vkWaitForFences>::Dispatch(manager, device, fenceCount, pFences, waitAll, timeout);
 
-    VkResult result = vulkan_wrappers::GetDeviceTable(device)->WaitForFences(device, fenceCount, pFences, waitAll, timeout);
+        result = vulkan_wrappers::GetDeviceTable(device)->WaitForFences(device, fenceCount, pFences, waitAll, timeout);
 
-    auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkWaitForFences);
-    if (encoder)
-    {
-        encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
-        encoder->EncodeUInt32Value(fenceCount);
-        encoder->EncodeVulkanHandleArray<vulkan_wrappers::FenceWrapper>(pFences, fenceCount);
-        encoder->EncodeUInt32Value(waitAll);
-        encoder->EncodeUInt64Value(timeout);
-        encoder->EncodeEnumValue(result);
-        manager->EndApiCallCapture();
+        auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkWaitForFences);
+        if (encoder)
+        {
+            encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
+            encoder->EncodeUInt32Value(fenceCount);
+            encoder->EncodeVulkanHandleArray<vulkan_wrappers::FenceWrapper>(pFences, fenceCount);
+            encoder->EncodeUInt32Value(waitAll);
+            encoder->EncodeUInt64Value(timeout);
+            encoder->EncodeEnumValue(result);
+            manager->EndApiCallCapture();
+        }
+
+        CustomEncoderPostCall<format::ApiCallId::ApiCall_vkWaitForFences>::Dispatch(manager, result, device, fenceCount, pFences, waitAll, timeout);
+#if ENABLE_OPENXR_SUPPORT
+    } else {
+        result = vulkan_wrappers::GetDeviceTable(device)->WaitForFences(device, fenceCount, pFences, waitAll, timeout);
     }
-
-    CustomEncoderPostCall<format::ApiCallId::ApiCall_vkWaitForFences>::Dispatch(manager, result, device, fenceCount, pFences, waitAll, timeout);
+#endif // ENABLE_OPENXR_SUPPORT
 
     return result;
 }
@@ -11490,6 +11531,12 @@ VKAPI_ATTR VkResult VKAPI_CALL ImportFenceWin32HandleKHR(
 
     VkResult result = vulkan_wrappers::GetDeviceTable(device)->ImportFenceWin32HandleKHR(device, pImportFenceWin32HandleInfo_unwrapped);
 
+#if ENABLE_OPENXR_SUPPORT
+    if (result == VK_SUCCESS) {
+        manager->AddValidFence(pImportFenceWin32HandleInfo_unwrapped->fence);
+    }
+#endif // ENABLE_OPENXR_SUPPORT
+
     auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkImportFenceWin32HandleKHR);
     if (encoder)
     {
@@ -11575,6 +11622,12 @@ VKAPI_ATTR VkResult VKAPI_CALL ImportFenceFdKHR(
     const VkImportFenceFdInfoKHR* pImportFenceFdInfo_unwrapped = vulkan_wrappers::UnwrapStructPtrHandles(pImportFenceFdInfo, handle_unwrap_memory);
 
     VkResult result = vulkan_wrappers::GetDeviceTable(device)->ImportFenceFdKHR(device, pImportFenceFdInfo_unwrapped);
+
+#if ENABLE_OPENXR_SUPPORT
+    if (result == VK_SUCCESS) {
+        manager->AddValidFence(pImportFenceFdInfo->fence);
+    }
+#endif // ENABLE_OPENXR_SUPPORT
 
     auto encoder = manager->BeginApiCallCapture(format::ApiCallId::ApiCall_vkImportFenceFdKHR);
     if (encoder)

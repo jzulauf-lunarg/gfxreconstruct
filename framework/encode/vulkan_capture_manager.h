@@ -1256,10 +1256,7 @@ class VulkanCaptureManager : public ApiCaptureManager
     void PostProcess_vkCmdDebugMarkerInsertEXT(VkCommandBuffer                   commandBuffer,
                                                const VkDebugMarkerMarkerInfoEXT* pMarkerInfo);
 
-    void PostProcess_vkFrameBoundaryANDROID(VkDevice device, VkSemaphore semaphore, VkImage image)
-    {
-        EndFrame();
-    }
+    void PostProcess_vkFrameBoundaryANDROID(VkDevice device, VkSemaphore semaphore, VkImage image) { EndFrame(); }
 
     void PostProcess_vkCmdInsertDebugUtilsLabelEXT(VkCommandBuffer             commandBuffer,
                                                    const VkDebugUtilsLabelEXT* pLabelInfo);
@@ -1270,6 +1267,33 @@ class VulkanCaptureManager : public ApiCaptureManager
                                           const VkAllocationCallbacks*    pAllocator,
                                           VkShaderModule*                 pShaderModule);
 
+#if ENABLE_OPENXR_SUPPORT
+
+    // Fence work to skip recording fence calls in OpenXR that are triggered
+    // in the background by some runtimes.
+    inline void AddValidFence(VkFence fence) { valid_fences_.push_back(fence); }
+    inline void RemoveValidFence(VkFence fence)
+    {
+        valid_fences_.erase(std::remove(valid_fences_.begin(), valid_fences_.end(), fence), valid_fences_.end());
+    }
+    inline bool IsValidFence(VkFence fence)
+    {
+        return std::find(valid_fences_.begin(), valid_fences_.end(), fence) != valid_fences_.end();
+    }
+    inline bool AreAllValidFences(uint32_t count, const VkFence* fences)
+    {
+        for (uint32_t fence = 0; fence < count; ++fence)
+        {
+            if (!IsValidFence(fences[fence]))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+#endif // ENABLE_OPENXR_SUPPORT
+
 #if defined(__ANDROID__)
     void OverrideGetPhysicalDeviceSurfacePresentModesKHR(uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes);
 #endif
@@ -1279,15 +1303,9 @@ class VulkanCaptureManager : public ApiCaptureManager
 
     virtual ~VulkanCaptureManager() {}
 
-    virtual void CreateStateTracker() override
-    {
-        state_tracker_ = std::make_unique<VulkanStateTracker>();
-    }
+    virtual void CreateStateTracker() override { state_tracker_ = std::make_unique<VulkanStateTracker>(); }
 
-    virtual void DestroyStateTracker() override
-    {
-        state_tracker_ = nullptr;
-    }
+    virtual void DestroyStateTracker() override { state_tracker_ = nullptr; }
 
     virtual void WriteTrackedState(util::FileOutputStream* file_stream, format::ThreadId thread_id) override;
 
@@ -1354,6 +1372,10 @@ class VulkanCaptureManager : public ApiCaptureManager
     std::unique_ptr<VulkanStateTracker>             state_tracker_;
     HardwareBufferMap                               hardware_buffers_;
     std::mutex                                      deferred_operation_mutex;
+
+#if ENABLE_OPENXR_SUPPORT
+    std::vector<VkFence>                            valid_fences_;
+#endif
 };
 
 GFXRECON_END_NAMESPACE(encode)
