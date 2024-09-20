@@ -1282,6 +1282,20 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     bool CheckCommandBufferInfoForFrameBoundary(const VulkanCommandBufferInfo* command_buffer_info);
     bool CheckPNextChainForFrameBoundary(const VulkanDeviceInfo* device_info, const PNextNode* pnext);
 
+    struct CreateInstanceInfoState
+    {
+        std::vector<const char*> modified_layers;
+        std::vector<const char*> modified_extensions;
+        VkInstanceCreateInfo     modified_create_info;
+    };
+    CreateInstanceInfoState
+    ModifyCreateInstanceInfo(const StructPointerDecoder<Decoded_VkInstanceCreateInfo>* pCreateInfo,
+                             HandlePointerDecoder<VkInstance>*                         pInstance);
+
+    void PostCreateInstanceUpdateConsumerData(const VkInstance*                 replay_instance,
+                                              const VkInstanceCreateInfo&       modified_create_info,
+                                              HandlePointerDecoder<VkInstance>* pInstance);
+
     void UpdateDescriptorSetInfoWithTemplate(VulkanDescriptorSetInfo*                  desc_set_info,
                                              const VulkanDescriptorUpdateTemplateInfo* template_info,
                                              const DescriptorUpdateTemplateDecoder*    decoder) const;
