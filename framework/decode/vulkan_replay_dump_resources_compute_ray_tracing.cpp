@@ -50,17 +50,17 @@ GFXRECON_BEGIN_NAMESPACE(decode)
 
 DispatchTraceRaysDumpingContext::DispatchTraceRaysDumpingContext(const std::vector<uint64_t>&   dispatch_indices,
                                                                  const std::vector<uint64_t>&   trace_rays_indices,
-                                                                 VulkanObjectInfoTable&         object_info_table,
+                                                                 CommonObjectInfoTable&         object_info_table,
                                                                  const VulkanReplayOptions&     options,
                                                                  VulkanReplayDumpResourcesJson& dump_json,
                                                                  std::string                    capture_filename) :
     original_command_buffer_info(nullptr),
-    DR_command_buffer(VK_NULL_HANDLE), dispatch_indices(dispatch_indices),
-    trace_rays_indices(trace_rays_indices), bound_pipelines{ nullptr },
-    dump_resources_before(options.dump_resources_before), dump_resource_path(options.dump_resources_output_dir),
-    image_file_format(options.dump_resources_image_format), dump_resources_scale(options.dump_resources_scale),
-    device_table(nullptr), parent_device(VK_NULL_HANDLE), instance_table(nullptr), object_info_table(object_info_table),
-    replay_device_phys_mem_props(nullptr), current_dispatch_index(0), current_trace_rays_index(0), dump_json(dump_json),
+    DR_command_buffer(VK_NULL_HANDLE), dispatch_indices(dispatch_indices), trace_rays_indices(trace_rays_indices),
+    bound_pipelines{ nullptr }, dump_resources_before(options.dump_resources_before),
+    dump_resource_path(options.dump_resources_output_dir), image_file_format(options.dump_resources_image_format),
+    dump_resources_scale(options.dump_resources_scale), device_table(nullptr), parent_device(VK_NULL_HANDLE),
+    instance_table(nullptr), object_info_table(object_info_table), replay_device_phys_mem_props(nullptr),
+    current_dispatch_index(0), current_trace_rays_index(0), dump_json(dump_json),
     output_json_per_command(options.dump_resources_json_per_command),
     dump_immutable_resources(options.dump_resources_dump_immutable_resources),
     dump_all_image_subresources(options.dump_resources_dump_all_image_subresources), capture_filename(capture_filename),
@@ -1074,7 +1074,7 @@ VkResult DispatchTraceRaysDumpingContext::DumpMutableResources(uint64_t bcb_inde
             assert(mutable_resources_clones_before.images[i].image != VK_NULL_HANDLE);
 
             VulkanImageInfo modified_image_info = *mutable_resources_clones_before.images[i].original_image;
-            modified_image_info.handle    = mutable_resources_clones_before.images[i].image;
+            modified_image_info.handle          = mutable_resources_clones_before.images[i].image;
 
             const uint32_t              desc_set    = mutable_resources_clones_before.images[i].desc_set;
             const uint32_t              binding     = mutable_resources_clones_before.images[i].desc_binding;
@@ -1192,7 +1192,7 @@ VkResult DispatchTraceRaysDumpingContext::DumpMutableResources(uint64_t bcb_inde
         assert(mutable_resources_clones.images[i].image != VK_NULL_HANDLE);
 
         VulkanImageInfo modified_image_info = *mutable_resources_clones.images[i].original_image;
-        modified_image_info.handle    = mutable_resources_clones.images[i].image;
+        modified_image_info.handle          = mutable_resources_clones.images[i].image;
 
         const uint32_t              desc_set    = mutable_resources_clones.images[i].desc_set;
         const uint32_t              binding     = mutable_resources_clones.images[i].desc_binding;
@@ -1279,7 +1279,7 @@ VkResult DispatchTraceRaysDumpingContext::DumpMutableResources(uint64_t bcb_inde
         assert(mutable_resources_clones.buffers[i].original_buffer != nullptr);
         assert(mutable_resources_clones.buffers[i].buffer != VK_NULL_HANDLE);
         const VulkanBufferInfo* buffer_info = mutable_resources_clones.buffers[i].original_buffer;
-        std::vector<uint8_t> data;
+        std::vector<uint8_t>    data;
 
         VkResult res = resource_util.ReadFromBufferResource(
             mutable_resources_clones.buffers[i].buffer, buffer_info->size, 0, buffer_info->queue_family_index, data);
@@ -1777,9 +1777,9 @@ VkResult DispatchTraceRaysDumpingContext::DumpImmutableDescriptors(uint64_t qs_i
     for (const auto& buf : buffer_descriptors)
     {
         const VulkanBufferInfo* buffer_info = buf.first;
-        const VkDeviceSize offset      = buf.second.offset;
-        const VkDeviceSize range       = buf.second.range;
-        const VkDeviceSize size        = range == VK_WHOLE_SIZE ? buffer_info->size - offset : range;
+        const VkDeviceSize      offset      = buf.second.offset;
+        const VkDeviceSize      range       = buf.second.range;
+        const VkDeviceSize      size        = range == VK_WHOLE_SIZE ? buffer_info->size - offset : range;
 
         std::vector<uint8_t> data;
         VkResult             res = resource_util.ReadFromBufferResource(
