@@ -121,7 +121,7 @@ static void AddHandle(format::HandleId             parent_id,
                       const typename T::HandleType handle,
                       T&&                          initial_info,
                       CommonObjectInfoTable*       object_info_table,
-                      void                         (CommonObjectInfoTable::*AddFunc)(T&&))
+                      void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -136,7 +136,7 @@ static void AddHandle(format::HandleId       parent_id,
                       format::HandleId       id,
                       typename T::HandleType handle,
                       CommonObjectInfoTable* object_info_table,
-                      void                   (CommonObjectInfoTable::*AddFunc)(T&&))
+                      void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -155,7 +155,7 @@ static void AddHandleArray(format::HandleId              parent_id,
                            size_t                        handles_len,
                            std::vector<T>&&              initial_infos,
                            CommonObjectInfoTable*        object_info_table,
-                           void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                           void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -183,7 +183,7 @@ static void AddHandleArray(format::HandleId              parent_id,
                            const typename T::HandleType* handles,
                            size_t                        handles_len,
                            CommonObjectInfoTable*        object_info_table,
-                           void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                           void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -233,7 +233,7 @@ static void AddHandleArrayAsync(format::HandleId        parent_id,
                                 size_t                  ids_len,
                                 CommonObjectInfoTable*  object_info_table,
                                 std::vector<T>&&        initial_infos,
-                                void                    (CommonObjectInfoTable::*AddFunc)(T&&),
+                                void (CommonObjectInfoTable::*AddFunc)(T&&),
                                 std::shared_future<handle_create_result_t<typename T::HandleType>> future)
 {
     static_assert(has_handle_future_v<T>, "handle-type does not support asynchronous creation");
@@ -258,7 +258,7 @@ static void AddHandleArrayAsync(format::HandleId        parent_id,
 
 inline void RemoveHandle(format::HandleId       id,
                          CommonObjectInfoTable* object_info_table,
-                         void                   (CommonObjectInfoTable::*RemoveFunc)(format::HandleId))
+                         void (CommonObjectInfoTable::*RemoveFunc)(format::HandleId))
 {
     assert(object_info_table != nullptr);
 

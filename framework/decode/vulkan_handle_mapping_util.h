@@ -46,7 +46,7 @@ static void AddHandleArray(format::HandleId              parent_id,
                            size_t                        handles_len,
                            std::vector<T>&&              initial_infos,
                            CommonObjectInfoTable*        object_info_table,
-                           void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                           void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -81,7 +81,7 @@ static void AddHandleArray(format::HandleId              parent_id,
                            const typename T::HandleType* handles,
                            size_t                        handles_len,
                            CommonObjectInfoTable*        object_info_table,
-                           void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                           void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -114,8 +114,8 @@ static void AddHandleArray(format::HandleId              parent_id,
                            size_t                        handles_len,
                            std::vector<T>&&              initial_infos,
                            CommonObjectInfoTable*        object_info_table,
-                           S*                            (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
-                           void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                           S* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                           void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -157,8 +157,8 @@ static void AddHandleArray(format::HandleId              parent_id,
                            const typename T::HandleType* handles,
                            size_t                        handles_len,
                            CommonObjectInfoTable*        object_info_table,
-                           S*                            (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
-                           void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                           S* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                           void (CommonObjectInfoTable::*AddFunc)(T&&))
 {
     assert(object_info_table != nullptr);
 
@@ -193,9 +193,9 @@ static void AddHandleArray(format::HandleId              parent_id,
 template <typename T>
 void RemovePoolHandle(format::HandleId       id,
                       CommonObjectInfoTable* object_info_table,
-                      T*                     (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
-                      void                   (CommonObjectInfoTable::*RemovePoolFunc)(format::HandleId),
-                      void                   (CommonObjectInfoTable::*RemoveObjectFunc)(format::HandleId))
+                      T* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                      void (CommonObjectInfoTable::*RemovePoolFunc)(format::HandleId),
+                      void (CommonObjectInfoTable::*RemoveObjectFunc)(format::HandleId))
 {
     assert(object_info_table != nullptr);
 
@@ -216,7 +216,7 @@ template <typename S, typename T>
 void RemoveHandleArray(format::HandleId                                    pool_id,
                        const HandlePointerDecoder<typename T::HandleType>* handles_pointer,
                        CommonObjectInfoTable*                              object_info_table,
-                       S*   (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                       S* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
                        void (CommonObjectInfoTable::*RemoveFunc)(format::HandleId))
 {
     assert((handles_pointer != nullptr) && (object_info_table != nullptr));
