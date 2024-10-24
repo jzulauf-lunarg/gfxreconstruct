@@ -245,7 +245,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
 
     template <typename T>
     typename T::HandleType MapHandle(format::HandleId id,
-                                     const T*         (CommonObjectInfoTable::*MapFunc)(format::HandleId) const) const
+                                     const T* (CommonObjectInfoTable::*MapFunc)(format::HandleId) const) const
     {
         return handle_mapping::MapHandle(id, *object_info_table_, MapFunc);
     }
@@ -286,7 +286,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                    const format::HandleId*       id,
                    const typename T::HandleType* handle,
                    T&&                           initial_info,
-                   void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                   void (CommonObjectInfoTable::*AddFunc)(T&&))
     {
         if ((id != nullptr) && (handle != nullptr))
         {
@@ -299,7 +299,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     void AddHandle(format::HandleId              parent_id,
                    const format::HandleId*       id,
                    const typename T::HandleType* handle,
-                   void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                   void (CommonObjectInfoTable::*AddFunc)(T&&))
     {
         if ((id != nullptr) && (handle != nullptr))
         {
@@ -314,7 +314,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                     const typename T::HandleType* handles,
                     size_t                        handles_len,
                     std::vector<T>&&              initial_infos,
-                    void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                    void (CommonObjectInfoTable::*AddFunc)(T&&))
     {
         handle_mapping::AddHandleArray(
             parent_id, ids, ids_len, handles, handles_len, std::move(initial_infos), object_info_table_, AddFunc);
@@ -326,7 +326,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                     size_t                        ids_len,
                     const typename T::HandleType* handles,
                     size_t                        handles_len,
-                    void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                    void (CommonObjectInfoTable::*AddFunc)(T&&))
     {
         handle_mapping::AddHandleArray(parent_id, ids, ids_len, handles, handles_len, object_info_table_, AddFunc);
     }
@@ -405,8 +405,8 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                         const typename T::HandleType* handles,
                         size_t                        handles_len,
                         std::vector<T>&&              initial_infos,
-                        S*                            (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
-                        void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                        S* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                        void (CommonObjectInfoTable::*AddFunc)(T&&))
     {
         handle_mapping::AddHandleArray(parent_id,
                                        pool_id,
@@ -427,8 +427,8 @@ class VulkanReplayConsumerBase : public VulkanConsumer
                         size_t                        ids_len,
                         const typename T::HandleType* handles,
                         size_t                        handles_len,
-                        S*                            (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
-                        void                          (CommonObjectInfoTable::*AddFunc)(T&&))
+                        S* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                        void (CommonObjectInfoTable::*AddFunc)(T&&))
     {
         handle_mapping::AddHandleArray(
             parent_id, pool_id, ids, ids_len, handles, handles_len, object_info_table_, GetPoolInfoFunc, AddFunc);
@@ -441,9 +441,9 @@ class VulkanReplayConsumerBase : public VulkanConsumer
 
     template <typename T>
     void RemovePoolHandle(format::HandleId id,
-                          T*               (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
-                          void             (CommonObjectInfoTable::*RemovePoolFunc)(format::HandleId),
-                          void             (CommonObjectInfoTable::*RemoveObjectFunc)(format::HandleId))
+                          T* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                          void (CommonObjectInfoTable::*RemovePoolFunc)(format::HandleId),
+                          void (CommonObjectInfoTable::*RemoveObjectFunc)(format::HandleId))
     {
         handle_mapping::RemovePoolHandle(id, object_info_table_, GetPoolInfoFunc, RemovePoolFunc, RemoveObjectFunc);
     }
@@ -452,7 +452,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     void RemovePoolHandles(format::HandleId                                    pool_id,
                            const HandlePointerDecoder<typename T::HandleType>* handles_pointer,
                            size_t                                              handles_len,
-                           S*   (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
+                           S* (CommonObjectInfoTable::*GetPoolInfoFunc)(format::HandleId),
                            void (CommonObjectInfoTable::*RemoveFunc)(format::HandleId))
     {
         // This parameter is only referenced by debug builds.
@@ -471,7 +471,7 @@ class VulkanReplayConsumerBase : public VulkanConsumer
     void SetOutputArrayCount(format::HandleId handle_id,
                              uint32_t         index,
                              size_t           count,
-                             HandleInfoT*     (CommonObjectInfoTable::*HandleInfoFunc)(format::HandleId))
+                             HandleInfoT* (CommonObjectInfoTable::*HandleInfoFunc)(format::HandleId))
     {
         HandleInfoT* info = (object_info_table_->*HandleInfoFunc)(handle_id);
         if (info != nullptr)
