@@ -141,24 +141,8 @@ class VulkanReplayDumpResourcesHeaderGenerator(BaseGenerator):
 
     def endFile(self):
         """Method override."""
-        write('};', file=self.outFile)
-        self.newline()
-        write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
-        write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
-
-        # Finish processing in superclass
-        BaseGenerator.endFile(self)
-
-    def need_feature_generation(self):
-        """Indicates that the current feature has C++ code to generate."""
-        if self.feature_cmd_params:
-            return True
-        return False
-
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        for cmd in self.get_filtered_cmd_names():
-            info = self.feature_cmd_params[cmd]
+        for cmd in self.get_all_filtered_cmd_names():
+            info = self.all_cmd_params[cmd]
             return_type = info[0]
             values = info[2]
 
@@ -172,6 +156,20 @@ class VulkanReplayDumpResourcesHeaderGenerator(BaseGenerator):
             cmddef = decl + ';\n'
 
             write(cmddef, file=self.outFile)
+
+        write('};', file=self.outFile)
+        self.newline()
+        write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
+        write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
+
+        # Finish processing in superclass
+        BaseGenerator.endFile(self)
+
+    def need_feature_generation(self):
+        """Indicates that the current feature has C++ code to generate."""
+        if self.feature_cmd_params:
+            return True
+        return False
 
     def __load_replay_overrides(self, filename):
         overrides = json.loads(open(filename, 'r').read())
