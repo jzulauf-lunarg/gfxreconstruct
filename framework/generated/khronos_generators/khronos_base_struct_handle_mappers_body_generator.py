@@ -29,6 +29,65 @@ class KhronosBaseStructHandleMappersBodyGenerator():
     """Base class for generating struct handle mappers body code."""
 
     def endFile(self):
+        for struct in self.get_all_filtered_struct_names():
+            if (
+                (struct in self.structs_with_handles)
+                or (struct in self.GENERIC_HANDLE_STRUCTS)
+                or (struct in self.structs_with_map_data)
+            ) and (struct not in self.STRUCT_MAPPERS_BLACKLIST):
+                handle_members = list()
+                generic_handle_members = dict()
+
+                if struct in self.structs_with_handles:
+                    handle_members = self.structs_with_handles[struct].copy()
+
+                if struct in self.structs_with_map_data:
+                    handle_members.extend(
+                        self.structs_with_map_data[struct].copy()
+                    )
+
+                if struct in self.GENERIC_HANDLE_STRUCTS:
+                    generic_handle_members = self.GENERIC_HANDLE_STRUCTS[struct
+                                                                         ]
+
+                # Determine if the struct only contains members that are structs that contain handles or static arrays of handles,
+                # and does not need a temporary variable referencing the struct value.
+                needs_value_ptr = False
+                if generic_handle_members:
+                    needs_value_ptr = True
+                else:
+                    for member in handle_members:
+                        if (
+                            (self.is_handle(member.base_type) or self.is_atom(member.base_type)) and
+                            not (member.is_array and not member.is_dynamic)
+                        ) or (member.base_type in self.MAP_STRUCT_TYPE):
+                            needs_value_ptr = True
+                            break
+
+                body = '\n'
+                body += 'void MapStructHandles(Decoded_{}* wrapper, const CommonObjectInfoTable& object_info_table)\n'.format(
+                    struct
+                )
+                body += '{\n'
+
+                if not needs_value_ptr:
+                    body += '    if (wrapper != nullptr)\n'
+                    body += '    {'
+                else:
+                    body += '    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))\n'
+                    body += '    {\n'
+                    body += '        {}* value = wrapper->decoded_value;\n'.format(
+                        struct
+                    )
+
+                body += self.make_struct_handle_mappings(
+                    struct, handle_members, generic_handle_members
+                )
+                body += '    }\n'
+                body += '}'
+
+                write(body, file=self.outFile)
+
         # Print out a function to handle mapping the extended struct types
         extended_struct_func_name = self.getExtendedStructFuncPrefix()
         self.newline()
@@ -97,67 +156,6 @@ class KhronosBaseStructHandleMappersBodyGenerator():
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
-
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        for struct in self.get_filtered_struct_names():
-            if (
-                (struct in self.structs_with_handles)
-                or (struct in self.GENERIC_HANDLE_STRUCTS)
-                or (struct in self.structs_with_map_data)
-            ) and (struct not in self.STRUCT_MAPPERS_BLACKLIST):
-                handle_members = list()
-                generic_handle_members = dict()
-
-                if struct in self.structs_with_handles:
-                    handle_members = self.structs_with_handles[struct].copy()
-
-                if struct in self.structs_with_map_data:
-                    handle_members.extend(
-                        self.structs_with_map_data[struct].copy()
-                    )
-
-                if struct in self.GENERIC_HANDLE_STRUCTS:
-                    generic_handle_members = self.GENERIC_HANDLE_STRUCTS[struct
-                                                                         ]
-
-                # Determine if the struct only contains members that are structs that contain handles or static arrays of handles,
-                # and does not need a temporary variable referencing the struct value.
-                needs_value_ptr = False
-                if generic_handle_members:
-                    needs_value_ptr = True
-                else:
-                    for member in handle_members:
-                        if (
-                            (self.is_handle(member.base_type) or self.is_atom(member.base_type)) and
-                            not (member.is_array and not member.is_dynamic)
-                        ) or (member.base_type in self.MAP_STRUCT_TYPE):
-                            needs_value_ptr = True
-                            break
-
-                body = '\n'
-                body += 'void MapStructHandles(Decoded_{}* wrapper, const CommonObjectInfoTable& object_info_table)\n'.format(
-                    struct
-                )
-                body += '{\n'
-
-                if not needs_value_ptr:
-                    body += '    if (wrapper != nullptr)\n'
-                    body += '    {'
-                else:
-                    body += '    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))\n'
-                    body += '    {\n'
-                    body += '        {}* value = wrapper->decoded_value;\n'.format(
-                        struct
-                    )
-
-                body += self.make_struct_handle_mappings(
-                    struct, handle_members, generic_handle_members
-                )
-                body += '    }\n'
-                body += '}'
-
-                write(body, file=self.outFile)
 
     def make_struct_handle_mappings(
         self, name, handle_members, generic_handle_members
