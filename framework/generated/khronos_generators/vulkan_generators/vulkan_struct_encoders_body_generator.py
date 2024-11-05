@@ -92,6 +92,18 @@ class VulkanStructEncodersBodyGenerator(BaseGenerator):
 
     def endFile(self):
         """Method override."""
+        for struct in self.get_all_filtered_struct_names():
+            body = '\n'
+            body += 'void EncodeStruct(ParameterEncoder* encoder, const {}& value)\n'.format(
+                struct
+            )
+            body += '{\n'
+            body += self.make_struct_body(
+                struct, self.all_struct_members[struct], 'value.'
+            )
+            body += '}'
+            write(body, file=self.outFile)
+
         self.newline()
         write('GFXRECON_END_NAMESPACE(encode)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)
@@ -104,20 +116,6 @@ class VulkanStructEncodersBodyGenerator(BaseGenerator):
         if self.feature_struct_members:
             return True
         return False
-
-    def generate_feature(self):
-        """Performs C++ code generation for the feature."""
-        for struct in self.get_filtered_struct_names():
-            body = '\n'
-            body += 'void EncodeStruct(ParameterEncoder* encoder, const {}& value)\n'.format(
-                struct
-            )
-            body += '{\n'
-            body += self.make_struct_body(
-                struct, self.feature_struct_members[struct], 'value.'
-            )
-            body += '}'
-            write(body, file=self.outFile)
 
     def make_struct_body(self, name, values, prefix):
         """Command definition."""
