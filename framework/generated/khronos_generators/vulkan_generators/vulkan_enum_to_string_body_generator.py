@@ -95,30 +95,8 @@ class VulkanEnumToStringBodyGenerator(BaseGenerator):
     # Method override
     # yapf: disable
     def endFile(self):
-        body = inspect.cleandoc('''
-            GFXRECON_END_NAMESPACE(util)
-            GFXRECON_END_NAMESPACE(gfxrecon)
-            ''')
-        write(body, file=self.outFile)
-
-        # Finish processing in superclass
-        BaseGenerator.endFile(self)
-    # yapf: enable
-
-    #
-    # Indicates that the current feature has C++ code to generate.
-    def need_feature_generation(self):
-        if self.feature_struct_members:
-            return True
-        return False
-
-    # Performs C++ code generation for the feature.
-    # yapf: disable
-
-    def generate_feature(self):
         for enum in sorted(self.enum_names):
-            if not enum in self.processedEnums and not enum in self.enumAliases:
-                self.processedEnums.add(enum)
+            if not enum in self.enumAliases:
                 if self.is_flags_enum_64bit(enum):
                     # print(enum)
                     # body = 'std::string {0}ToString(const {0}& value, ToStringFlags, uint32_t, uint32_t)\n'
@@ -179,4 +157,19 @@ class VulkanEnumToStringBodyGenerator(BaseGenerator):
                 # if self.is_flags_enum_64bit(enum):
                 #    print(body.format(enum, BitsEnumToFlagsTypedef(enum)))
 
+        body = inspect.cleandoc('''
+            GFXRECON_END_NAMESPACE(util)
+            GFXRECON_END_NAMESPACE(gfxrecon)
+            ''')
+        write(body, file=self.outFile)
+
+        # Finish processing in superclass
+        BaseGenerator.endFile(self)
     # yapf: enable
+
+    #
+    # Indicates that the current feature has C++ code to generate.
+    def need_feature_generation(self):
+        if self.feature_struct_members:
+            return True
+        return False
