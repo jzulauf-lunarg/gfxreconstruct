@@ -390,7 +390,10 @@ class KhronosBaseGenerator(OutputGenerator):
 
         # TODO: Temp, add "global_" to the name so they don't conflict with the existing items as we
         # transition over to using global versions
-        self.global_structs_with_handles = OrderedDict() # Map of structures with handles
+        self.global_structs_with_handles = OrderedDict(
+        )  # Map of structures with handles
+        self.global_structs_with_handle_ptrs = set(
+        )  # Set of structures with handles
 
         # Data for every supported Khronos API
         # TODO: Eventually, we should move this info into a data file that we read (JSON?)
@@ -1024,6 +1027,12 @@ class KhronosBaseGenerator(OutputGenerator):
             for member in self.all_struct_members[struct]:
                 if member.base_type == typename:
                     self.global_structs_with_handles[struct] = [member]
+                    if (
+                        struct not in self.global_structs_with_handle_ptrs
+                        and (member.is_pointer or member.is_array)
+                    ):
+                        self.global_structs_with_handle_ptrs.add(struct)
+
                     self.bubbleUpStructHasHandles(struct)
 
                     # Check to see if this is a child and update
@@ -1050,6 +1059,8 @@ class KhronosBaseGenerator(OutputGenerator):
                 if child in self.global_structs_with_handles:
                     self.global_structs_with_handles[parent] = [child]
                     self.bubbleUpStructHasHandles(parent)
+                    if parent not in self.global_structs_with_handle_ptrs:
+                        self.global_structs_with_handle_ptrs.add(parent)
 
     def processStruct(self, element, typename, alias):
         # For structs, we ignore the alias because it is a typedef.  Not ignoring the alias
@@ -1059,6 +1070,7 @@ class KhronosBaseGenerator(OutputGenerator):
             self.addStructMembers(typename, self.make_value_info(members))
 
             handles = []
+            has_handle_pointers = False
             for count in range(0, len(self.all_struct_members[typename])):
                 current_xml_member = members[count]
                 current_struct_member = self.all_struct_members[typename][count
@@ -1100,11 +1112,15 @@ class KhronosBaseGenerator(OutputGenerator):
                 # If this member is a handle, of course we have handles in this struct
                 elif self.is_handle(current_struct_member.base_type):
                     handles.append(deepcopy(current_struct_member))
+                    if current_struct_member.is_pointer or current_struct_member.is_array:
+                        has_handle_pointers = True
 
                 # If the struct is one we already know about and it has handles, record that
                 elif self.is_struct(current_struct_member.base_type):
                     if current_struct_member.base_type in self.global_structs_with_handles:
                         handles.append(deepcopy(current_struct_member))
+                        if current_struct_member.base_type in self.global_structs_with_handle_ptrs:
+                            has_handle_pointers = True
 
                 elif (
                     current_struct_member.base_type
@@ -1165,7 +1181,7 @@ class KhronosBaseGenerator(OutputGenerator):
                             for member in self.all_struct_members[ext_struct]:
                                 if member.name == self.getExtendedStructVarName(
                                 ):
-                                    # If the extended struct already has handles, then just 
+                                    # If the extended struct already has handles, then just
                                     # append the extended struct field name to the
                                     # existing list if it's not already there
                                     found = False
@@ -1201,10 +1217,15 @@ class KhronosBaseGenerator(OutputGenerator):
                                         else:
                                             self.global_structs_with_handles[
                                                 ext_struct] = [member]
+                                        has_handle_pointers = True
                                         self.bubbleUpStructHasHandles(
                                             ext_struct
                                         )
                                     break
+
+            if has_handle_pointers and typename not in self.global_structs_with_handle_ptrs:
+                self.global_structs_with_handle_ptrs.add(typename)
+
         else:
             self.addStructAlias(typename, alias)
 
