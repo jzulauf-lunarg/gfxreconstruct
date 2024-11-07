@@ -557,7 +557,7 @@ class VulkanReplayConsumerBodyGenerator(
                         if need_temp_value:
                             expr += '{}->GetPointer();'.format(value.name)
 
-                        if (value.base_type in self.global_structs_with_handles) or (
+                        if (value.base_type in self.structs_with_handles) or (
                             value.base_type in self.GENERIC_HANDLE_STRUCTS
                         ):
                             preexpr.append(expr)
@@ -720,8 +720,8 @@ class VulkanReplayConsumerBodyGenerator(
                                     alloc_expr, paramname=value.name
                                 )
                                 # If this is a struct with handles, we need to add replay mappings for the embedded handles.
-                                if value.base_type in self.global_structs_with_handles:
-                                    if value.base_type in self.global_structs_with_handle_ptrs:
+                                if value.base_type in self.structs_with_handles:
+                                    if value.base_type in self.structs_with_handle_ptrs:
                                         preexpr.append(
                                             'SetStructArrayHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                             .format(
@@ -744,8 +744,8 @@ class VulkanReplayConsumerBodyGenerator(
                                     alloc_expr, paramname=value.name
                                 )
                                 # If this is a struct with handles, we need to add replay mappings for the embedded handles.
-                                if value.base_type in self.global_structs_with_handles:
-                                    if value.base_type in self.global_structs_with_handle_ptrs:
+                                if value.base_type in self.structs_with_handles:
+                                    if value.base_type in self.structs_with_handle_ptrs:
                                         preexpr.append(
                                             'SetStructArrayHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                             .format(
@@ -873,9 +873,9 @@ class VulkanReplayConsumerBodyGenerator(
                                     )
 
                                 # If this is a struct with handles, we need to add replay mappings for the embedded handles.
-                                if value.base_type in self.global_structs_with_handles:
+                                if value.base_type in self.structs_with_handles:
                                     if need_temp_value:
-                                        if value.base_type in self.global_structs_with_handle_ptrs:
+                                        if value.base_type in self.structs_with_handle_ptrs:
                                             preexpr.append(
                                                 'SetStructArrayHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                                 .format(
@@ -895,7 +895,7 @@ class VulkanReplayConsumerBodyGenerator(
                                             )
                                         )
                                     else:
-                                        if value.base_type in self.global_structs_with_handle_ptrs:
+                                        if value.base_type in self.structs_with_handle_ptrs:
                                             preexpr.append(
                                                 'SetStructHandleLengths<Decoded_{}>({paramname}->GetMetaStructPointer(), {paramname}->GetLength());'
                                                 .format(
