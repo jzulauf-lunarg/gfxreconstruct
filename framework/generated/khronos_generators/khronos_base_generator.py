@@ -595,9 +595,6 @@ class KhronosBaseGenerator(OutputGenerator):
         # Finish processing in superclass
         OutputGenerator.endFeature(self)
 
-    def is_openxr_class(self):
-        return True if ('OpenXr' in self.__class__.__name__) else False
-
     def is_resource_dump_class(self):
         return True if ('ReplayDumpResources' in self.__class__.__name__) else False
 
