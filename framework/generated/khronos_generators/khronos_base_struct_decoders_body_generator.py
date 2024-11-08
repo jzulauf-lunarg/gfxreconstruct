@@ -84,9 +84,8 @@ class KhronosBaseStructDecodersBodyGenerator():
         is_struct = False
         is_string = False
         is_funcp = False
-        is_handle = False
+        is_handle_like = False
         is_enum = False
-        is_atom = False
 
         type_name = self.make_invocation_type_name(value.base_type)
 
@@ -96,10 +95,8 @@ class KhronosBaseStructDecodersBodyGenerator():
             is_string = True
         elif type_name == 'FunctionPtr':
             is_funcp = True
-        elif self.is_handle(value.base_type):
-            is_handle = True
-        elif self.isAtom(value.base_type):
-            is_atom = True
+        elif self.isHandleLike(value.base_type):
+            is_handle_like = True
         elif type_name == 'Enum':
             is_enum = True
 
@@ -179,7 +176,7 @@ class KhronosBaseStructDecodersBodyGenerator():
                             arraylen=value.array_capacity
                         )
 
-                    if is_struct or is_string or is_handle or is_atom:
+                    if is_struct or is_string or is_handle_like:
                         main_body += '    bytes_read += wrapper->{}{}Decode({});\n'.format(
                             value.name, access_op, buffer_args
                         )
@@ -194,7 +191,7 @@ class KhronosBaseStructDecodersBodyGenerator():
                         )
 
                     if not is_static_array:
-                        if is_handle or is_atom:
+                        if is_handle_like:
                             # Point the real struct's member pointer to the handle pointer decoder's handle memory.
                             main_body += '    value->{} = nullptr;\n'.format(value.name)
                         else:
@@ -270,7 +267,7 @@ class KhronosBaseStructDecodersBodyGenerator():
                     buffer_args, value.name
                 )
                 main_body += '    value->{} = nullptr;\n'.format(value.name)
-            elif is_handle or is_atom:
+            elif is_handle_like:
                 main_body += '    bytes_read += ValueDecoder::DecodeHandleIdValue({}, &(wrapper->{}));\n'.format(
                     buffer_args, value.name
                 )
