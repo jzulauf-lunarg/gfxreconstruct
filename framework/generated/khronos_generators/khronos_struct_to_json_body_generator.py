@@ -146,7 +146,7 @@ class KhronosStructToJsonBodyGenerator():
             elif value.is_pointer:
                 if 'String' in type_name:
                     to_json = 'FieldToJson(jdata["{0}"], &meta_struct.{0}, options)'
-                elif self.is_handle(value_type):
+                elif self.isHandleLike(value_type):
                     to_json = 'HandleToJson(jdata["{0}"], &meta_struct.{0}, options)'
                 elif self.isBooleanType(value_type):
                     to_json = 'Bool32ToJson(jdata["{0}"], &meta_struct.{0}, options)'
@@ -158,7 +158,7 @@ class KhronosStructToJsonBodyGenerator():
                         to_json = 'FieldToJson(jdata["{0}"], uuid_to_string(sizeof(decoded_value.{0}), decoded_value.{0}), options)'
                     elif 'String' in type_name:
                         to_json = 'FieldToJson(jdata["{0}"], &meta_struct.{0}, options)'
-                    elif self.is_handle(value_type):
+                    elif self.isHandleLike(value_type):
                         to_json = 'HandleToJson(jdata["{0}"], &meta_struct.{0}, options)'
                     elif self.is_struct(value_type):
                         # If this is a parent class, generate the parent->child conversion info
