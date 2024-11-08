@@ -231,9 +231,7 @@ class KhronosStructHandleWrappersHeaderGenerator():
 
             for member in self.structs_with_handles[struct]:
                 wrapper_prefix = self.getWrapperPrefixFromType(member.base_type)
-                func_target = 'Handle'
-                if self.is_atom(member.base_type):
-                    func_target = 'Atom'
+                func_target = self.getHandleLikeFuncNameModifier(member.base_type)
 
                 if self.is_struct(member.base_type):
                     if member.is_array:

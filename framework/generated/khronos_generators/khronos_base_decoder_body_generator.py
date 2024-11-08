@@ -168,7 +168,7 @@ class KhronosBaseDecoderBodyGenerator():
             is_funcp = True
         elif self.is_handle(value.base_type):
             is_handle = True
-        elif self.is_atom(value.base_type):
+        elif self.isAtom(value.base_type):
             is_atom = True
 
         # is_pointer will be False for static arrays.

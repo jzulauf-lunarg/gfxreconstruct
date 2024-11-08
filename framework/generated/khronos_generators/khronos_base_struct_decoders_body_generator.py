@@ -98,7 +98,7 @@ class KhronosBaseStructDecodersBodyGenerator():
             is_funcp = True
         elif self.is_handle(value.base_type):
             is_handle = True
-        elif self.is_atom(value.base_type):
+        elif self.isAtom(value.base_type):
             is_atom = True
         elif type_name == 'Enum':
             is_enum = True
