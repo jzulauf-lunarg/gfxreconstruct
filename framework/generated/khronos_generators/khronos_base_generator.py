@@ -517,14 +517,6 @@ class KhronosBaseGenerator(OutputGenerator):
         """Intended to be overridden."""
         return None
 
-    def get_api_prefix(self):
-        """Intended to be overridden."""
-        return 'Khronos'
-
-    def get_prefix_from_type(self, type):
-        """Intended to be overridden."""
-        return self.get_api_prefix()
-
     #
     # Indicates that the current feature has C++ code to generate.
     # The subclass should override this method.
@@ -917,7 +909,7 @@ class KhronosBaseGenerator(OutputGenerator):
         if self.is_struct(base_type):
             return base_type
         elif self.is_handle(base_type):
-            return self.get_api_prefix() + 'Handle'
+            return self.getApiPrefix() + 'Handle'
         elif self.is_flags(base_type):
             return self.flags_types[base_type][2:]
         elif self.is_enum(base_type):
@@ -1508,11 +1500,29 @@ class KhronosBaseGenerator(OutputGenerator):
                 return api_data.wrapper_prefix
         return self.getWrapperPrefix()
 
-    def getWrapperPrefixFromCommand(self, type):
+    def getWrapperPrefixFromCommand(self, cmd):
         for api_data in self.valid_khronos_supported_api_data:
-            if type.startswith(api_data.command_prefix):
+            if cmd.startswith(api_data.command_prefix):
                 return api_data.wrapper_prefix
         return self.getWrapperPrefix()
+
+    def getApiPrefix(self):
+        api_data = self.getApiData()
+        if api_data is not None:
+            return api_data.api_class_prefix
+        return 'Khronos'
+
+    def getApiPrefixFromType(self, type):
+        for api_data in self.valid_khronos_supported_api_data:
+            if type.startswith(api_data.struct_prefix):
+                return api_data.api_class_prefix
+        return self.getApiPrefix()
+
+    def getApiPrefixFromCommand(self, cmd):
+        for api_data in self.valid_khronos_supported_api_data:
+            if cmd.startswith(api_data.command_prefix):
+                return api_data.api_class_prefix
+        return self.getApiPrefix()
 
     def isExtendedStructDefinition(self, value):
         if (value.name == self.getExtendedStructVarName() and

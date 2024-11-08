@@ -29,7 +29,7 @@ from copy import deepcopy
 class KhronosBaseDecoderBodyGenerator():
     """Base class for generating decoder body code."""
     def generate_commands(self):
-        platform_type = self.get_api_prefix()
+        platform_type = self.getApiPrefix()
 
         first = True
         for cmd in self.get_all_filtered_cmd_names():
@@ -269,7 +269,7 @@ class KhronosBaseDecoderBodyGenerator():
         return preamble, main_body, epilogue
 
     def generate_decode_cases(self):
-        prefix = self.get_api_prefix()
+        prefix = self.getApiPrefix()
         """Generate the (Platform)Decoder::DecodeFunctionCall method."""
 
         body = f'void {prefix}Decoder::DecodeFunctionCall(format::ApiCallId             call_id,\n'

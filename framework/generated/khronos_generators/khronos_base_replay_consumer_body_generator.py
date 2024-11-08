@@ -29,7 +29,7 @@ class KhronosBaseReplayConsumerBodyGenerator():
 
     def endFile(self):
         """Performs C++ code generation for the feature."""
-        platform_type = self.get_api_prefix()
+        platform_type = self.getApiPrefix()
 
         for cmd in self.get_all_filtered_cmd_names():
 
