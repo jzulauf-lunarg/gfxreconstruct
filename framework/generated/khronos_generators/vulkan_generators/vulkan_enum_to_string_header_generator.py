@@ -107,7 +107,7 @@ class VulkanEnumToStringHeaderGenerator(BaseGenerator):
                     body = 'template <> std::string ToString<{0}>(const {0}& value, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
                     if 'Bits' in enum:
                         body += '\ntemplate <> std::string ToString<{0}>(VkFlags vkFlags, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
-                write(body.format(enum, BitsEnumToFlagsTypedef(enum)),
+                write(body.format(enum, self.getFlagsTypeFromEnum(enum)),
                         file=self.outFile)
 
         body = inspect.cleandoc('''

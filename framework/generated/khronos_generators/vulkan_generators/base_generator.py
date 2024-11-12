@@ -43,7 +43,7 @@
 
 import os,re,sys,json
 from collections import OrderedDict
-from khronos_base_generator import (KhronosBaseGeneratorOptions, KhronosBaseGenerator, BitsEnumToFlagsTypedef, makeReString, removeSuffix, ValueInfo, write)
+from khronos_base_generator import (KhronosBaseGeneratorOptions, KhronosBaseGenerator, makeReString, ValueInfo, write)
 from generator import (OutputGenerator, noneStr, regSortFeatures)
 from vkconventions import VulkanConventions
 
