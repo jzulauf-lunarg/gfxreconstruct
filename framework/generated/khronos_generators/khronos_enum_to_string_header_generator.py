@@ -29,17 +29,24 @@ from khronos_base_generator import write
 class KhronosEnumToStringHeaderGenerator():
     """Generate C++ functions for Khronos ToString() functions"""
 
+    def skipGeneratingEnumToStringForType(self, type):
+        """ Method may be overridden"""
+        return False
+
     def writeEnumToStringHeader(self):
         for enum in sorted(self.enum_names):
-            if not enum in self.enumAliases:
-                if self.is_flags_enum_64bit(enum):
-                    body = 'std::string {0}ToString(const {0} value);'
-                    body += '\nstd::string {1}ToString(VkFlags64 vkFlags);'
-                else:
-                    body = 'template <> std::string ToString<{0}>(const {0}& value, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
-                    if 'Bits' in enum:
-                        body += '\ntemplate <> std::string ToString<{0}>(VkFlags vkFlags, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
-                write(
-                    body.format(enum, self.getFlagsTypeFromEnum(enum)),
-                    file=self.outFile
-                )
+            if enum in self.enumAliases or self.skipGeneratingEnumToStringForType(
+                enum
+            ):
+                continue
+            if self.is_flags_enum_64bit(enum):
+                body = 'std::string {0}ToString(const {0} value);'
+                body += '\nstd::string {1}ToString(VkFlags64 vkFlags);'
+            else:
+                body = 'template <> std::string ToString<{0}>(const {0}& value, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
+                if 'Bits' in enum:
+                    body += '\ntemplate <> std::string ToString<{0}>(VkFlags vkFlags, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'
+            write(
+                body.format(enum, self.getFlagsTypeFromEnum(enum)),
+                file=self.outFile
+            )
