@@ -28,6 +28,11 @@ from copy import deepcopy
 
 class KhronosDecoderBodyGenerator():
     """Khronos class for generating decoder body code."""
+
+    def skipGeneratingCommand(self, command):
+        """ Method may be overridden. """
+        return False
+
     def generate_commands(self):
         platform_type = self.getApiPrefix()
 
@@ -282,6 +287,9 @@ class KhronosDecoderBodyGenerator():
         write(body, file=self.outFile)
 
         for cmd in self.get_all_filtered_cmd_names():
+            if self.skipGeneratingCommand(cmd):
+                continue
+
             cmddef = '    case format::ApiCallId::ApiCall_{}:\n'.format(cmd)
             cmddef += '        Decode_{}(call_info, parameter_buffer, buffer_size);\n'.format(
                 cmd
