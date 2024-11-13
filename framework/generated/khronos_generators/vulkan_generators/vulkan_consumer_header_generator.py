@@ -96,40 +96,46 @@ class VulkanConsumerHeaderGenerator(BaseGenerator):
         write('GFXRECON_BEGIN_NAMESPACE(gfxrecon)', file=self.outFile)
         write('GFXRECON_BEGIN_NAMESPACE(decode)', file=self.outFile)
         self.newline()
+
+    def writeClassSetup(self, class_name, constructor_args):
         write(
             'class {class_name} : public {class_name}Base'.format(
-                class_name=gen_opts.class_name
+                class_name=class_name
             ),
             file=self.outFile
         )
         write('{', file=self.outFile)
         write('  public:', file=self.outFile)
-        if gen_opts.constructor_args:
+        if constructor_args:
             arg_list = ', '.join(
                 [
                     arg.split(' ')[-1]
-                    for arg in gen_opts.constructor_args.split(',')
+                    for arg in constructor_args.split(',')
                 ]
             )
             write(
                 '    {class_name}({}) : {class_name}Base({}) {{ }}\n'.format(
-                    gen_opts.constructor_args,
+                    constructor_args,
                     arg_list,
-                    class_name=gen_opts.class_name
+                    class_name=class_name
                 ),
                 file=self.outFile
             )
         else:
             write(
-                '    {}() {{ }}\n'.format(gen_opts.class_name),
+                '    {}() {{ }}\n'.format(class_name),
                 file=self.outFile
             )
         write(
-            '    virtual ~{}() override {{ }}'.format(gen_opts.class_name),
+            '    virtual ~{}() override {{ }}'.format(class_name),
             file=self.outFile
         )
 
-    def outputHeaderContents(self):
+
+    def writeClassCompletion(self):
+        write('};', file=self.outFile)
+
+    def writeClassContents(self):
         """Method may be overridden."""
         for cmd in self.get_all_filtered_cmd_names():
             info = self.all_cmd_params[cmd]
@@ -152,11 +158,15 @@ class VulkanConsumerHeaderGenerator(BaseGenerator):
 
             write(cmddef, file=self.outFile)
 
+    def outputHeaderContents(self, class_name, constructor_args):
+        self.writeClassSetup(class_name, constructor_args)
+        self.writeClassContents()
+        self.writeClassCompletion()
+
     def endFile(self):
         """Method override."""
-        self.outputHeaderContents()
+        self.outputHeaderContents(self.genOpts.class_name, self.genOpts.constructor_args)
 
-        write('};', file=self.outFile)
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
         write('GFXRECON_END_NAMESPACE(gfxrecon)', file=self.outFile)

@@ -92,8 +92,11 @@ class VulkanExportJsonConsumerHeaderGenerator(VulkanConsumerHeaderGenerator):
         if 'vkCreateRayTracingPipelinesKHR' in self.APICALL_BLACKLIST:
             self.APICALL_BLACKLIST.remove('vkCreateRayTracingPipelinesKHR')
 
-    def outputHeaderContents(self):
-        """Performs C++ code generation for the feature."""
+    def writeClassContents(self):
+        """
+        Method Override
+        Performs C++ code generation for the feature.
+        """
         for cmd in self.get_all_filtered_cmd_names():
             if cmd not in self.customImplementationRequired:
                 info = self.all_cmd_params[cmd]
