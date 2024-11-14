@@ -39,23 +39,7 @@ class KhronosStructDecodersHeaderGenerator():
                 or struct in self.children_structs
             ):
                 continue
-
-            body = '\n'
-            body += 'struct Decoded_{}\n'.format(struct)
-            body += '{\n'
-            body += '    using struct_type = {};\n'.format(struct)
-            body += '\n'
-            body += '    {}* decoded_value{{ nullptr }};\n'.format(struct)
-
-            decls = self.make_member_declarations(
-                struct, self.all_struct_members[struct]
-            )
-            if decls:
-                body += '\n'
-                body += decls
-
-            body += '};'
-            write(body, file=self.outFile)
+            self.writeDecodedStructDefinition(struct)
 
         # Write typedefs for any aliases
         for struct in self.all_struct_aliases:
@@ -66,8 +50,6 @@ class KhronosStructDecodersHeaderGenerator():
             write(body, file=self.outFile)
 
         api_data = self.getApiData()
-        var_name = api_data.type_prefix.lower() + '_type'
-        struct_type = api_data.struct_type_enum
 
         for struct in self.get_all_filtered_struct_names():
             if (
@@ -76,140 +58,161 @@ class KhronosStructDecodersHeaderGenerator():
                 or struct not in self.children_structs
             ):
                 continue
+            self.writeDecodedParentChildStructDefinitions(api_data, struct)
 
-            size_union_name = f'{struct}SizeUnion'
-            body = '\n'
-            body += 'union {}\n'.format(size_union_name)
-            body += '{\n'
-            current_char = 'a'
-            for child in self.base_header_structs[struct]:
-                body += '    {} {};\n'.format(child, current_char)
-                current_char = chr(ord(current_char) + 1)
-            body += '};\n\n'
+    def writeDecodedStructDefinition(self, struct):
+        body = '\n'
+        body += 'struct Decoded_{}\n'.format(struct)
+        body += '{\n'
+        body += '    using struct_type = {};\n'.format(struct)
+        body += '\n'
+        body += '    {}* decoded_value{{ nullptr }};\n'.format(struct)
 
-            body += 'struct Decoded_{}\n'.format(struct)
-            body += '{\n'
-            body += '    using struct_type = {};\n'.format(struct)
-            body += '    using union_size_type = {};\n'.format(size_union_name)
+        decls = self.makeMemberDeclarations(
+            struct, self.all_struct_members[struct]
+        )
+        if decls:
             body += '\n'
-            body += '    {}* decoded_value{{ nullptr }};\n'.format(struct)
-            body += '\n'
-            body += '    static Decoded_{}* AllocateAppropriate(const uint8_t* buffer, size_t buffer_size, size_t len, bool initialize = false)\n'.format(
-                struct
+            body += decls
+
+        body += '};'
+        write(body, file=self.outFile)
+
+    def writeDecodedParentChildStructDefinitions(self, api_data, struct):
+        var_name = api_data.type_prefix.lower() + '_type'
+
+        size_union_name = f'{struct}SizeUnion'
+        body = '\n'
+        body += 'union {}\n'.format(size_union_name)
+        body += '{\n'
+        current_char = 'a'
+        for child in self.children_structs[struct]:
+            body += '    {} {};\n'.format(child, current_char)
+            current_char = chr(ord(current_char) + 1)
+        body += '};\n\n'
+
+        body += 'struct Decoded_{}\n'.format(struct)
+        body += '{\n'
+        body += '    using struct_type = {};\n'.format(struct)
+        body += '    using union_size_type = {};\n'.format(size_union_name)
+        body += '\n'
+        body += '    {}* decoded_value{{ nullptr }};\n'.format(struct)
+        body += '\n'
+
+        # Each parent struct requires a "AllocateAppropriate" function which will determine what
+        # child structure is coming in and allocate it appropriately (especially in the case it is an array)
+        body += '    static Decoded_{}* AllocateAppropriate(const uint8_t* buffer, size_t buffer_size, size_t len, bool initialize = false)\n'.format(
+            struct
+        )
+        body += '    {\n'
+        body += '        Decoded_{}* return_type = nullptr;\n'.format(struct)
+        body += '\n'
+        body += '        // Peek at the actual structure type\n'
+        body += '        uint32_t peek_structure_type = 0;\n'
+        body += '        ValueDecoder::DecodeUInt32Value(buffer, buffer_size, &peek_structure_type);\n'
+        body += '        {struct_type} {} = static_cast<{struct_type}>(peek_structure_type);\n'.format(
+            var_name, struct_type=api_data.struct_type_enum
+        )
+        body += '\n'
+        body += '        switch ({})\n'.format(var_name)
+        body += '        {\n'
+        body += '            default:\n'
+        body += '                return_type = DecodeAllocator::Allocate<Decoded_{}>(len, initialize);\n'.format(
+            struct
+        )
+        body += '                break;\n'
+        for child in self.children_structs[struct]:
+            body += '         case {}:\n'.format(self.struct_type_names[child])
+            body += '             return_type = reinterpret_cast<Decoded_{}*>(DecodeAllocator::Allocate<Decoded_{}>(len, initialize));\n'.format(
+                struct, child
             )
-            body += '    {\n'
-            body += '        Decoded_{}* return_type = nullptr;\n'.format(
-                struct
+            body += '             break;\n'
+        body += '        }\n'
+        body += '        return return_type;\n'
+        body += '    }\n'
+        body += '\n'
+        body += '    static size_t DecodeAppropriate(const uint8_t* buffer, size_t buffer_size, Decoded_{}* dest)\n'.format(
+            struct
+        )
+        body += '    {\n'
+        body += '        size_t   bytes_read          = 0;\n'
+        body += '\n'
+        body += '        // Peek at the actual structure type\n'
+        body += '        uint32_t peek_structure_type = 0;\n'
+        body += '        ValueDecoder::DecodeUInt32Value(buffer, buffer_size, &peek_structure_type);\n'
+        body += '        {struct_type} {} = static_cast<{struct_type}>(peek_structure_type);\n'.format(
+            var_name, struct_type=api_data.struct_type_enum
+        )
+        body += '\n'
+        body += '        switch ({})\n'.format(var_name)
+        body += '        {\n'
+        body += '            default:\n'
+        body += '                bytes_read += DecodeStruct((buffer + bytes_read), (buffer_size - bytes_read), dest);\n'
+        body += '                break;\n'
+        for child in self.children_structs[struct]:
+            body += '            case {}:\n'.format(
+                self.struct_type_names[child]
             )
-            body += '\n'
-            body += '        // Peek at the actual structure type\n'
-            body += '        uint32_t peek_structure_type = 0;\n'
-            body += '        ValueDecoder::DecodeUInt32Value(buffer, buffer_size, &peek_structure_type);\n'
-            body += '        {struct_type} {} = static_cast<{struct_type}>(peek_structure_type);\n'.format(
-                var_name, struct_type=struct_type
+            body += '            {\n'
+            body += '                Decoded_{}* local_dest = reinterpret_cast<Decoded_{}*>(dest);\n'.format(
+                child, child
             )
-            body += '\n'
-            body += '        switch ({})\n'.format(var_name)
-            body += '        {\n'
-            body += '            default:\n'
-            body += '                return_type = DecodeAllocator::Allocate<Decoded_{}>(len, initialize);\n'.format(
+            body += '                bytes_read += DecodeStruct((buffer + bytes_read), (buffer_size - bytes_read), local_dest);\n'
+            body += '                break;\n'
+            body += '            }\n'
+        body += '        }\n'
+        body += '        return bytes_read;\n'
+        body += '    }\n'
+        body += '\n'
+        body += '    {} *AllocateOutputData(size_t len)\n'.format(struct)
+        body += '    {\n'
+        body += '        assert(decoded_value);\n'
+        body += '        {} struct_type = decoded_value->{};\n'.format(
+            api_data.struct_type_enum, api_data.struct_type_variable
+        )
+        body += '        {} *output_data = nullptr;\n'.format(struct)
+        body += '\n'
+        body += '        switch (struct_type)\n'
+        body += '        {\n'
+        body += '            default:\n'
+        body += '                output_data = DecodeAllocator::Allocate<{}>(len);\n'.format(
+            struct
+        )
+        body += '                break;\n'
+        for child in self.children_structs[struct]:
+            switch_type = self.struct_type_names[child]
+
+            body += '            case {}:\n'.format(switch_type)
+            body += '            {\n'
+            body += '                auto *allocation = DecodeAllocator::Allocate<{}>(len);\n'.format(
+                child
+            )
+            body += '                for (size_t i=0; i < len; i++)\n'
+            body += '                {\n'
+            body += '                    allocation[i] = {}{{ {} }};\n'.format(
+                child, switch_type
+            )
+            body += '                }\n'
+            body += '                output_data = reinterpret_cast<{}*>(allocation);\n'.format(
                 struct
             )
             body += '                break;\n'
-            for child in self.base_header_structs[struct]:
-                switch_type = self.generate_structure_type(child)
+            body += '            }\n'
+        body += '        }\n'
+        body += '        return output_data;\n'
+        body += '    }\n'
 
-                body += '         case {}:\n'.format(switch_type)
-                body += '             return_type = reinterpret_cast<Decoded_{}*>(DecodeAllocator::Allocate<Decoded_{}>(len, initialize));\n'.format(
-                    struct, child
-                )
-                body += '             break;\n'
-            body += '        }\n'
-            body += '        return return_type;\n'
-            body += '    }\n'
+        decls = self.makeMemberDeclarations(
+            struct, self.all_struct_members[struct]
+        )
+        if decls:
             body += '\n'
-            body += '    static size_t DecodeAppropriate(const uint8_t* buffer, size_t buffer_size, Decoded_{}* dest)\n'.format(
-                struct
-            )
-            body += '    {\n'
-            body += '        size_t   bytes_read          = 0;\n'
-            body += '\n'
-            body += '        // Peek at the actual structure type\n'
-            body += '        uint32_t peek_structure_type = 0;\n'
-            body += '        ValueDecoder::DecodeUInt32Value(buffer, buffer_size, &peek_structure_type);\n'
-            body += '        {struct_type} {} = static_cast<{struct_type}>(peek_structure_type);\n'.format(
-                var_name, struct_type=struct_type
-            )
-            body += '\n'
-            body += '        switch ({})\n'.format(var_name)
-            body += '        {\n'
-            body += '            default:\n'
-            body += '                bytes_read += DecodeStruct((buffer + bytes_read), (buffer_size - bytes_read), dest);\n'
-            body += '                break;\n'
-            for child in self.base_header_structs[struct]:
-                switch_type = self.generate_structure_type(child)
+            body += decls
 
-                body += '            case {}:\n'.format(switch_type)
-                body += '            {\n'
-                body += '                Decoded_{}* local_dest = reinterpret_cast<Decoded_{}*>(dest);\n'.format(
-                    child, child
-                )
-                body += '                bytes_read += DecodeStruct((buffer + bytes_read), (buffer_size - bytes_read), local_dest);\n'
-                body += '                break;\n'
-                body += '            }\n'
-            body += '        }\n'
-            body += '        return bytes_read;\n'
-            body += '    }\n'
-            body += '\n'
-            body += '    {} *AllocateOutputData(size_t len)\n'.format(struct)
-            body += '    {\n'
-            body += '        assert(decoded_value);\n'
-            body += '        {} struct_type = decoded_value->{};\n'.format(
-                struct_type, api_data.struct_type_variable
-            )
-            body += '        {} *output_data = nullptr;\n'.format(struct)
-            body += '\n'
-            body += '        switch (struct_type)\n'
-            body += '        {\n'
-            body += '            default:\n'
-            body += '                output_data = DecodeAllocator::Allocate<{}>(len);\n'.format(
-                struct
-            )
-            body += '                break;\n'
-            for child in self.base_header_structs[struct]:
-                switch_type = self.generate_structure_type(child)
+        body += '};\n'
+        write(body, file=self.outFile)
 
-                body += '            case {}:\n'.format(switch_type)
-                body += '            {\n'
-                body += '                auto *allocation = DecodeAllocator::Allocate<{}>(len);\n'.format(
-                    child
-                )
-                body += '                for (size_t i=0; i < len; i++)\n'
-                body += '                {\n'
-                body += '                    allocation[i] = {}{{ {} }};\n'.format(
-                    child, switch_type
-                )
-                body += '                }\n'
-                body += '                output_data = reinterpret_cast<{}*>(allocation);\n'.format(
-                    struct
-                )
-                body += '                break;\n'
-                body += '            }\n'
-            body += '        }\n'
-            body += '        return output_data;\n'
-            body += '    }\n'
-
-            decls = self.make_member_declarations(
-                struct, self.all_struct_members[struct]
-            )
-            if decls:
-                body += '\n'
-                body += decls
-
-            body += '};\n'
-            write(body, file=self.outFile)
-
-    def needs_member_declaration(self, name, value):
+    def needsMemberDeclaration(self, name, value):
         """Determines if a struct member needs an associated member
         delcaration in the decoded struct wrapper.
         """
@@ -225,7 +228,7 @@ class KhronosStructDecodersHeaderGenerator():
             return True
         return False
 
-    def get_default_init_value(self, type):
+    def getDefaultInitValue(self, type):
         """Determines if the struct member requires default initalization and
         determines the value to use.
         """
@@ -237,7 +240,7 @@ class KhronosStructDecodersHeaderGenerator():
             return '0'
         return None
 
-    def make_member_declarations(self, name, values):
+    def makeMemberDeclarations(self, name, values):
         """Generate the struct member declarations for the decoded struct wrapper."""
         body = ''
 
@@ -250,12 +253,12 @@ class KhronosStructDecodersHeaderGenerator():
                 body += '    {}Node* {}{{ nullptr }};\n'.format(
                     extended_struct_func_prefix, extended_struct_name
                 )
-            elif self.needs_member_declaration(name, value):
+            elif self.needsMemberDeclaration(name, value):
                 type_name = self.make_decoded_param_type(value)
                 if self.is_struct(value.base_type):
                     type_name = '{}*'.format(type_name)
 
-                default_value = self.get_default_init_value(type_name)
+                default_value = self.getDefaultInitValue(type_name)
                 if default_value:
                     body += '    {} {}{{ {} }};\n'.format(
                         type_name, value.name, default_value
