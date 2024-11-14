@@ -88,7 +88,7 @@ class KhronosStructHandleMappersBodyGenerator():
                         struct
                     )
 
-                body += self.make_struct_handle_mappings(
+                body += self.makeStructHandleMappings(
                     struct, handle_members, generic_handle_members
                 )
                 body += '    }\n'
@@ -163,7 +163,7 @@ class KhronosStructHandleMappersBodyGenerator():
         for struct in self.output_structs:
             self.newline()
             write(
-                self.make_struct_handle_additions(
+                self.makeStructHandleAdditions(
                     struct, self.structs_with_handles[struct]
                 ),
                 file=self.outFile
@@ -174,13 +174,13 @@ class KhronosStructHandleMappersBodyGenerator():
             if struct in self.structs_with_handle_ptrs:
                 self.newline()
                 write(
-                    self.make_struct_handle_allocations(
+                    self.makeStructHandleAllocations(
                         struct, self.structs_with_handles[struct]
                     ),
                     file=self.outFile
                 )
 
-    def make_struct_handle_mappings(
+    def makeStructHandleMappings(
         self, name, handle_members, generic_handle_members
     ):
         """Generating expressions for mapping struct handles read from the capture file to handles created at replay."""
@@ -271,7 +271,7 @@ class KhronosStructHandleMappersBodyGenerator():
 
         return body
 
-    def make_struct_handle_additions(self, name, members):
+    def makeStructHandleAdditions(self, name, members):
         """Generating expressions for adding mappings for handles created at replay that are embedded in structs."""
         platform_type = self.getApiPrefix()
 
@@ -339,7 +339,7 @@ class KhronosStructHandleMappersBodyGenerator():
         body += '}'
         return body
 
-    def make_struct_handle_allocations(self, name, members):
+    def makeStructHandleAllocations(self, name, members):
         """Generate expressions to allocate memory for handles created at replay that are embedded in structs.
         Determine if the struct only contains members that are structs that contain handles or static arrays of handles,
         and does not need a temporary variable referencing the struct value.
