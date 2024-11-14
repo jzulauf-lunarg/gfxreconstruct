@@ -1627,6 +1627,12 @@ class KhronosBaseGenerator(OutputGenerator):
                 return api_data.api_class_prefix
         return self.getApiPrefix()
 
+    def getApiStructPrefixFromType(self, type):
+        for api_data in self.valid_khronos_supported_api_data:
+            if type.startswith(api_data.type_prefix):
+                return api_data.type_prefix
+        return self.getApiPrefix()
+
     def getApiPrefixFromCommand(self, cmd):
         for api_data in self.valid_khronos_supported_api_data:
             if cmd.startswith(api_data.command_prefix):
