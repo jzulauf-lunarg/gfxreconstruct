@@ -23,6 +23,7 @@
 
 import sys
 from base_generator import BaseGenerator, BaseGeneratorOptions, write
+from khronos_struct_decoders_forward_generator import KhronosStructDecodersForwardGenerator
 
 
 class VulkanStructDecodersForwardGeneratorOptions(BaseGeneratorOptions):
@@ -52,7 +53,7 @@ class VulkanStructDecodersForwardGeneratorOptions(BaseGeneratorOptions):
         )
 
 
-class VulkanStructDecodersForwardGenerator(BaseGenerator):
+class VulkanStructDecodersForwardGenerator(BaseGenerator, KhronosStructDecodersForwardGenerator):
     """VulkanStructDecodersForwardGenerator - subclass of BaseGenerator.
     Generates C++ type and function declarations for decoding Vulkan API structures.
     Generate C++ function and forward type declarations for Vulkan struct decoding.
@@ -84,7 +85,7 @@ class VulkanStructDecodersForwardGenerator(BaseGenerator):
 
     def endFile(self):
         """Method override."""
-        self.writeStructDecoderForwardPrototypes()
+        KhronosStructDecodersForwardGenerator.writeStructDecoderForwardPrototypes(self)
 
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
@@ -92,19 +93,6 @@ class VulkanStructDecodersForwardGenerator(BaseGenerator):
 
         # Finish processing in superclass
         BaseGenerator.endFile(self)
-
-    def writeStructDecoderForwardPrototypes(self):
-        for struct in self.get_all_filtered_struct_names():
-            write('struct Decoded_{};'.format(struct), file=self.outFile)
-
-        self.newline()
-
-        for struct in self.get_all_filtered_struct_names():
-            write(
-                'size_t DecodeStruct(const uint8_t* parameter_buffer, size_t buffer_size, Decoded_{}* wrapper);'
-                .format(struct),
-                file=self.outFile
-            )
 
     def need_feature_generation(self):
         """Indicates that the current feature has C++ code to generate."""
