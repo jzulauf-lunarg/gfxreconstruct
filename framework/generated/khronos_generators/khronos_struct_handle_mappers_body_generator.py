@@ -28,7 +28,7 @@ from khronos_base_generator import write
 class KhronosStructHandleMappersBodyGenerator():
     """Base class for generating struct handle mappers body code."""
 
-    def endFile(self):
+    def writeStructHandleWrapperContent(self):
         for struct in self.get_all_filtered_struct_names():
             if (
                 (struct in self.structs_with_handles)
