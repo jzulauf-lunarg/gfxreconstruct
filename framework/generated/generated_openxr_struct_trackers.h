@@ -27,25 +27,22 @@
 **
 */
 
+#ifdef ENABLE_OPENXR_SUPPORT
+
 #include "encode/handle_unwrap_memory.h"
 #include "format/platform_types.h"
 #include "util/defines.h"
 
-#include <openxr/openxr.h>
+
+#include "format/platform_types.h"
+
+#include "openxr/openxr.h"
+#include "openxr/openxr_loader_negotiation.h"
+#include "openxr/openxr_platform.h"
 
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
-
-template <typename T>
-T* MakeUnwrapStructs(const T* values, size_t len, HandleUnwrapMemory* unwrap_memory)
-{
-    assert((values != nullptr) && (len > 0) && (unwrap_memory != nullptr));
-
-    const uint8_t* bytes     = reinterpret_cast<const uint8_t*>(values);
-    size_t         num_bytes = len * sizeof(T);
-
-    return reinterpret_cast<T*>(unwrap_memory->GetFilledBuffer(bytes, num_bytes));
-}
+GFXRECON_BEGIN_NAMESPACE(openxr_trackers)
 
 XrApiLayerProperties* TrackStruct(const XrApiLayerProperties* value, HandleUnwrapMemory* unwrap_memory);
 XrExtensionProperties* TrackStruct(const XrExtensionProperties* value, HandleUnwrapMemory* unwrap_memory);
@@ -397,5 +394,8 @@ XrUserCalibrationEnableEventsInfoML* TrackStruct(const XrUserCalibrationEnableEv
 
 void* TrackStruct(const void* value, HandleUnwrapMemory* unwrap_memory);
 
+GFXRECON_END_NAMESPACE(openxr_trackers)
 GFXRECON_END_NAMESPACE(encode)
 GFXRECON_END_NAMESPACE(gfxrecon)
+
+#endif // ENABLE_OPENXR_SUPPORT
