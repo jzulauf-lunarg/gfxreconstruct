@@ -49,7 +49,7 @@ class KhronosLayerFuncTableGenerator():
             else:
                 body = '    {{ "{}",{}reinterpret_cast<{}>(encode::{}) }},'.format(
                     cmd, (' ' * align), api_data.void_func_pointer_type,
-                    cmd[2:]
+                    cmd
                 )
             write(body, file=self.outFile)
 
