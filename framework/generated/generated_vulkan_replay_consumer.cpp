@@ -3655,7 +3655,6 @@ void VulkanReplayConsumer::Process_vkDestroySwapchainKHR(
 {
     auto in_device = GetObjectInfoTable().GetVkDeviceInfo(device);
     auto in_swapchain = GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain);
-    if (GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id) == nullptr || GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id)->surface_creation_skipped) { return; }
 
     OverrideDestroySwapchainKHR(GetDeviceTable(in_device->handle)->DestroySwapchainKHR, in_device, in_swapchain, pAllocator);
     RemoveHandle(swapchain, &CommonObjectInfoTable::RemoveVkSwapchainKHRInfo);
@@ -3671,7 +3670,6 @@ void VulkanReplayConsumer::Process_vkGetSwapchainImagesKHR(
 {
     auto in_device = GetObjectInfoTable().GetVkDeviceInfo(device);
     auto in_swapchain = GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain);
-    if (GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id) == nullptr || GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id)->surface_creation_skipped) { return; }
     pSwapchainImageCount->IsNull() ? nullptr : pSwapchainImageCount->AllocateOutputData(1, GetOutputArrayCount<uint32_t, VulkanSwapchainKHRInfo>("vkGetSwapchainImagesKHR", returnValue, swapchain, kSwapchainKHRArrayGetSwapchainImagesKHR, pSwapchainImageCount, pSwapchainImages, &CommonObjectInfoTable::GetVkSwapchainKHRInfo));
     if (!pSwapchainImages->IsNull()) { pSwapchainImages->SetHandleLength(*pSwapchainImageCount->GetOutputPointer()); }
     std::vector<VulkanImageInfo> handle_info(*pSwapchainImageCount->GetOutputPointer());
@@ -3696,7 +3694,6 @@ void VulkanReplayConsumer::Process_vkAcquireNextImageKHR(
 {
     auto in_device = GetObjectInfoTable().GetVkDeviceInfo(device);
     auto in_swapchain = GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain);
-    if (GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id) == nullptr || GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id)->surface_creation_skipped) { return; }
     auto in_semaphore = GetObjectInfoTable().GetVkSemaphoreInfo(semaphore);
     auto in_fence = GetObjectInfoTable().GetVkFenceInfo(fence);
     pImageIndex->IsNull() ? nullptr : pImageIndex->AllocateOutputData(1, static_cast<uint32_t>(0));
@@ -5388,7 +5385,6 @@ void VulkanReplayConsumer::Process_vkWaitForPresentKHR(
     }
     auto in_device = GetObjectInfoTable().GetVkDeviceInfo(device);
     auto in_swapchain = GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain);
-    if (GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id) == nullptr || GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapchain)->surface_id)->surface_creation_skipped) { return; }
 
     VkResult replay_result = OverrideWaitForPresentKHR(GetDeviceTable(in_device->handle)->WaitForPresentKHR, returnValue, in_device, in_swapchain, presentId, timeout);
     CheckResult("vkWaitForPresentKHR", returnValue, replay_result, call_info);
@@ -7996,6 +7992,7 @@ void VulkanReplayConsumer::Process_vkSetLocalDimmingAMD(
     }
     VkDevice in_device = MapHandle<VulkanDeviceInfo>(device, &CommonObjectInfoTable::GetVkDeviceInfo);
     VkSwapchainKHR in_swapChain = MapHandle<VulkanSwapchainKHRInfo>(swapChain, &CommonObjectInfoTable::GetVkSwapchainKHRInfo);
+    if (GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapChain)->surface_id) == nullptr || GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().GetVkSwapchainKHRInfo(swapChain)->surface_id)->surface_creation_skipped) { return; }
 
     GetDeviceTable(in_device)->SetLocalDimmingAMD(in_device, in_swapChain, localDimmingEnable);
 }

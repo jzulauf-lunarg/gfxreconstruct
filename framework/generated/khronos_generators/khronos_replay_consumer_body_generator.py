@@ -255,7 +255,7 @@ class KhronosReplayConsumerBodyGenerator():
             handle_value.name, index_id, value.name, array_name, info_func
         )
 
-    def is_special_case_value(self, value):
+    def is_special_case_value(self, value, is_override):
         """ Method may be overridden. """
         return False
 
@@ -417,7 +417,7 @@ class KhronosReplayConsumerBodyGenerator():
                                 expr = 'MapStructArrayHandles({name}->GetMetaStructPointer(), {name}->GetLength(), GetObjectInfoTable());'.format(
                                     name=value.name
                                 )
-                            elif self.is_special_case_value(value):
+                            elif self.is_special_case_value(value, is_override):
                                 preexpr_special = self.handle_special_case_pointer_array(
                                     value, is_override
                                 )
@@ -788,7 +788,7 @@ class KhronosReplayConsumerBodyGenerator():
                     )
                     preexpr.append(expr)
 
-                    if self.is_special_case_value(value):
+                    if self.is_special_case_value(value, True):
                         preexpr_special = self.handle_special_case_pointer_array(
                             value, is_override
                         )
@@ -800,7 +800,7 @@ class KhronosReplayConsumerBodyGenerator():
                     )
                     preexpr.append(expr)
 
-                    if self.is_special_case_value(value):
+                    if self.is_special_case_value(value, False):
                         preexpr_special = self.handle_special_case_pointer_array(
                             value, is_override
                         )

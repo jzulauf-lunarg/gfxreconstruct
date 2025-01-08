@@ -410,16 +410,18 @@ class VulkanReplayConsumerBodyGenerator(
         """Method override."""
         return struct == 'VkAllocationCallbacks'
 
-    def is_special_case_value(self, value):
+    def is_special_case_value(self, value, is_override):
         """Method override."""
-        if ((value.name == 'pSurfaceInfo' and value.base_type != 'VkSurfaceKHR') or
-             value.name == 'surface' or value.name == 'swapchain'):
+        if (value.base_type == 'VkSurfaceKHR' or
+            (value.name == 'pSurfaceInfo' and value.base_type != 'VkSurfaceKHR') or
+            (value.base_type == "VkSwapchainKHR" and not is_override)):
             return True
         return False
 
     def handle_special_case_pointer_array(self, value, is_override):
         """Method override."""
         preexpr = []
+
         # If surface was not created, need to automatically ignore for non-overrides queries
         # Swapchain also need to check if a dummy swapchain was created instead
         if value.name == 'pSurfaceInfo' and value.base_type != 'VkSurfaceKHR':
@@ -448,7 +450,7 @@ class VulkanReplayConsumerBodyGenerator(
             preexpr.append(expr)
         # If surface was not created, need to automatically ignore for non-overrides queries
         # Swapchain also need to check if a dummy swapchain was created instead
-        elif value.name == "surface":
+        elif value.base_type == 'VkSurfaceKHR':
             if is_override:
                 arg_name = 'in_' + value.name
                 expr = 'if ({} == nullptr || {}->surface_creation_skipped) {{ return; }}'.format(
@@ -463,7 +465,7 @@ class VulkanReplayConsumerBodyGenerator(
                     value.name
                 )
                 preexpr.append(expr)
-        elif value.name == "swapchain":
+        elif value.base_type == 'VkSwapchainKHR' and not is_override:
             expr = 'if (GetObjectInfoTable().GetVkSurfaceKHRInfo(GetObjectInfoTable().Get{}Info({})->surface_id) == nullptr || '.format(
                 value.base_type, value.name
             )
