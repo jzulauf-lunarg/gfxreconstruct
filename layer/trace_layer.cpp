@@ -846,7 +846,7 @@ extern "C"
                                                                       const char* layerName,
                                                                       void*       apiLayerRequest)
     {
-        return -1; // XR_ERROR_VALIDATION_FAILURE
+        return -23; // XR_ERROR_LAYER_INVALID
     }
 
 #endif

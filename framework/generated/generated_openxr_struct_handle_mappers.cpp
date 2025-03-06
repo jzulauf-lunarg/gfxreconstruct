@@ -79,6 +79,27 @@ void MapStructHandles(Decoded_XrActionSpaceCreateInfo* wrapper, const CommonObje
     }
 }
 
+void MapStructHandles(Decoded_XrSwapchainImageBaseHeader* wrapper, const CommonObjectInfoTable& object_info_table)
+{
+    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
+    {
+        XrSwapchainImageBaseHeader* value = wrapper->decoded_value;
+
+        switch (value->type)
+        {
+            default:
+                // Handle as base-type below
+                break;
+            case XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR:
+                MapStructHandles(reinterpret_cast<Decoded_XrSwapchainImageVulkanKHR*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+        }
+    }
+}
+
 void MapStructHandles(Decoded_XrCompositionLayerBaseHeader* wrapper, const CommonObjectInfoTable& object_info_table)
 {
     if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
@@ -337,6 +358,105 @@ void MapStructHandles(Decoded_XrCompositionLayerQuad* wrapper, const CommonObjec
     }
 }
 
+void MapStructHandles(Decoded_XrEventDataBaseHeader* wrapper, const CommonObjectInfoTable& object_info_table)
+{
+    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
+    {
+        XrEventDataBaseHeader* value = wrapper->decoded_value;
+
+        switch (value->type)
+        {
+            default:
+                // Handle as base-type below
+                break;
+            case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSessionStateChanged*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataReferenceSpaceChangePending*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataInteractionProfileChanged*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataVisibilityMaskChangedKHR*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_VIVE_TRACKER_CONNECTED_HTCX:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataViveTrackerConnectedHTCX*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPATIAL_ANCHOR_CREATE_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpatialAnchorCreateCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_SET_STATUS_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceSetStatusCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_LOCALIZATION_CHANGED_ML:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataLocalizationChangedML*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_QUERY_RESULTS_AVAILABLE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceQueryResultsAvailableFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_QUERY_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceQueryCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_SAVE_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceSaveCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_ERASE_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceEraseCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_SHARE_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceShareCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_EVENT_DATA_SPACE_LIST_SAVE_COMPLETE_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrEventDataSpaceListSaveCompleteFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+        }
+    }
+}
+
 void MapStructHandles(Decoded_XrEventDataSessionStateChanged* wrapper, const CommonObjectInfoTable& object_info_table)
 {
     if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
@@ -486,6 +606,33 @@ void MapStructHandles(Decoded_XrCompositionLayerEquirect2KHR* wrapper, const Com
     }
 }
 
+void MapStructHandles(Decoded_XrBindingModificationBaseHeaderKHR* wrapper, const CommonObjectInfoTable& object_info_table)
+{
+    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
+    {
+        XrBindingModificationBaseHeaderKHR* value = wrapper->decoded_value;
+
+        switch (value->type)
+        {
+            default:
+                // Handle as base-type below
+                break;
+            case XR_TYPE_INTERACTION_PROFILE_DPAD_BINDING_EXT:
+                MapStructHandles(reinterpret_cast<Decoded_XrInteractionProfileDpadBindingEXT*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+            case XR_TYPE_INTERACTION_PROFILE_ANALOG_THRESHOLD_VALVE:
+                MapStructHandles(reinterpret_cast<Decoded_XrInteractionProfileAnalogThresholdVALVE*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+        }
+    }
+}
+
 void MapStructHandles(Decoded_XrBindingModificationsKHR* wrapper, const CommonObjectInfoTable& object_info_table)
 {
     if (wrapper != nullptr)
@@ -557,6 +704,27 @@ void MapStructHandles(Decoded_XrControllerModelKeyStateMSFT* wrapper, const Comm
         XrControllerModelKeyStateMSFT* value = wrapper->decoded_value;
 
         value->modelKey = handle_mapping::MapHandle<OpenXrControllerModelKeyMSFTInfo>(wrapper->modelKey, object_info_table, &CommonObjectInfoTable::GetXrControllerModelKeyMSFTInfo);
+    }
+}
+
+void MapStructHandles(Decoded_XrSwapchainStateBaseHeaderFB* wrapper, const CommonObjectInfoTable& object_info_table)
+{
+    if ((wrapper != nullptr) && (wrapper->decoded_value != nullptr))
+    {
+        XrSwapchainStateBaseHeaderFB* value = wrapper->decoded_value;
+
+        switch (value->type)
+        {
+            default:
+                // Handle as base-type below
+                break;
+            case XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB:
+                MapStructHandles(reinterpret_cast<Decoded_XrSwapchainStateFoveationFB*>(wrapper),
+                                 object_info_table);
+                // Return here because we processed the appropriate data in
+                // the correct structure type
+                return;
+        }
     }
 }
 

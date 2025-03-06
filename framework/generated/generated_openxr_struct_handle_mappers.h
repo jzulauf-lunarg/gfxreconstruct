@@ -51,6 +51,8 @@ void MapStructHandles(Decoded_XrSessionCreateInfo* wrapper, const CommonObjectIn
 
 void MapStructHandles(Decoded_XrActionSpaceCreateInfo* wrapper, const CommonObjectInfoTable& object_info_table);
 
+void MapStructHandles(Decoded_XrSwapchainImageBaseHeader* wrapper, const CommonObjectInfoTable& object_info_table);
+
 void MapStructHandles(Decoded_XrCompositionLayerBaseHeader* wrapper, const CommonObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_XrFrameEndInfo* wrapper, const CommonObjectInfoTable& object_info_table);
@@ -87,6 +89,8 @@ void MapStructHandles(Decoded_XrCompositionLayerProjection* wrapper, const Commo
 
 void MapStructHandles(Decoded_XrCompositionLayerQuad* wrapper, const CommonObjectInfoTable& object_info_table);
 
+void MapStructHandles(Decoded_XrEventDataBaseHeader* wrapper, const CommonObjectInfoTable& object_info_table);
+
 void MapStructHandles(Decoded_XrEventDataSessionStateChanged* wrapper, const CommonObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_XrEventDataReferenceSpaceChangePending* wrapper, const CommonObjectInfoTable& object_info_table);
@@ -113,6 +117,8 @@ void MapStructHandles(Decoded_XrVulkanGraphicsDeviceGetInfoKHR* wrapper, const C
 
 void MapStructHandles(Decoded_XrCompositionLayerEquirect2KHR* wrapper, const CommonObjectInfoTable& object_info_table);
 
+void MapStructHandles(Decoded_XrBindingModificationBaseHeaderKHR* wrapper, const CommonObjectInfoTable& object_info_table);
+
 void MapStructHandles(Decoded_XrBindingModificationsKHR* wrapper, const CommonObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_XrSpatialAnchorCreateInfoMSFT* wrapper, const CommonObjectInfoTable& object_info_table);
@@ -128,6 +134,8 @@ void MapStructHandles(Decoded_XrSecondaryViewConfigurationLayerInfoMSFT* wrapper
 void MapStructHandles(Decoded_XrSecondaryViewConfigurationFrameEndInfoMSFT* wrapper, const CommonObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_XrControllerModelKeyStateMSFT* wrapper, const CommonObjectInfoTable& object_info_table);
+
+void MapStructHandles(Decoded_XrSwapchainStateBaseHeaderFB* wrapper, const CommonObjectInfoTable& object_info_table);
 
 void MapStructHandles(Decoded_XrBodyJointsLocateInfoFB* wrapper, const CommonObjectInfoTable& object_info_table);
 
