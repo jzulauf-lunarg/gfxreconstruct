@@ -4471,7 +4471,7 @@ void OpenXrReplayConsumer::Process_xrEnableUserCalibrationEventsML(
     CustomProcess<format::ApiCallId::ApiCall_xrEnableUserCalibrationEventsML>::UpdateState(this, call_info, returnValue, instance, enableInfo, replay_result);
 }
 
-static void InitializeOutputStructNextImpl(const XrBaseInStructure* in_next, XrBaseOutStructure* output_struct)
+void InitializeOutputStructNextImpl(const XrBaseInStructure* in_next, XrBaseOutStructure* output_struct)
 {
     while(in_next)
     {

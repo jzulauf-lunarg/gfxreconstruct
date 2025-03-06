@@ -268,6 +268,7 @@ def make_gen_opts(args):
             extra_headers=extra_headers
         )
     ]
+
     gen_opts['generated_openxr_api_call_encoders.cpp'] = [
         OpenXrApiCallEncodersBodyGenerator,
         OpenXrApiCallEncodersBodyGeneratorOptions(
