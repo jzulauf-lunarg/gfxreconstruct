@@ -27,7 +27,11 @@ android {
                 cppFlags "-fexceptions", "-std=c++17", "-Wno-nullability-completeness"
                 arguments "-DANDROID_TOOLCHAIN=clang", "-DANDROID_STL=c++_static"
                 if (project.hasProperty("EnableOpenXR")) {
+                    logger.info('GFXReconstruct layer built with OpenXr Support.  [EnableOpenXR found]')
                     arguments.add("-DGFXRECON_ENABLE_OPENXR=ON")
+                }
+                else {
+                    logger.info('GFXReconstruct layer built with NO OpenXr Support! [EnableOpenXR NOT found]')
                 }
             }
         }
