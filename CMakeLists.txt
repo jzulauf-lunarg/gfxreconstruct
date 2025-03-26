@@ -127,14 +127,14 @@ include("FindVulkanVersion")
 
 set(OPENXR_SUPPORT_ENABLED FALSE)
 
-option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." OFF)
+option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." ON)
 if (GFXRECON_ENABLE_OPENXR)
     include("FindOpenXRVersion")
 
     if ((NOT XR_VERSION_MAJOR STREQUAL "") AND (NOT XR_VERSION_MINOR STREQUAL ""))
         set(OPENXR_SUPPORT_ENABLED TRUE)
     else()
-        message(WARNING "Failed to find OpenXR headers for support.  Continuing with it disabled!")
+        message(FATAL_ERROR "Failed to find OpenXR headers for support!")
     endif()
 
 endif()

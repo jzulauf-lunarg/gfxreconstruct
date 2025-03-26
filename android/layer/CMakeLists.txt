@@ -39,7 +39,7 @@ target_link_libraries(VkLayer_gfxreconstruct
 # Generate the OpenXR JSON for Android so that it will get picked up and
 # placed in the "assets" folder of the AAR and thus any APK file that
 # later includes it.
-option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." OFF)
+option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." ON)
 if (GFXRECON_ENABLE_OPENXR)
     file(TO_NATIVE_PATH "./" RELATIVE_PATH_PREFIX)
     string(REPLACE "\\" "\\\\" RELATIVE_PATH_PREFIX "${RELATIVE_PATH_PREFIX}")
