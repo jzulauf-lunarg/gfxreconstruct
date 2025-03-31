@@ -5,6 +5,23 @@ project(VkLayer_gfxreconstruct)
 get_filename_component(GFXRECON_SOURCE_DIR ../.. ABSOLUTE)
 
 include(../framework/cmake-config/PlatformConfig.cmake)
+
+# Generate the OpenXR JSON for Android so that it will get picked up and
+# placed in the "assets" folder of the AAR and thus any APK file that
+# later includes it.
+option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." ON)
+if (GFXRECON_ENABLE_OPENXR)
+    file(TO_NATIVE_PATH "./" RELATIVE_PATH_PREFIX)
+    string(REPLACE "\\" "\\\\" RELATIVE_PATH_PREFIX "${RELATIVE_PATH_PREFIX}")
+    include("FindOpenXRVersion")
+    if ((NOT XR_VERSION_MAJOR STREQUAL "") AND (NOT XR_VERSION_MINOR STREQUAL ""))
+	    message(STATUS "OpenXR support enabled")
+        set(OPENXR_SUPPORT_ENABLED TRUE)
+    else()
+	    message(FATAL_ERROR "Failed to find OpenXR headers for support.  Continuing with it disabled!")
+    endif()
+endif()
+
 add_subdirectory(../framework/util ${CMAKE_SOURCE_DIR}/../framework/util/build/layer/${ANDROID_ABI})
 add_subdirectory(../framework/graphics ${CMAKE_SOURCE_DIR}/../framework/graphics/build/layer/${ANDROID_ABI})
 add_subdirectory(../framework/format ${CMAKE_SOURCE_DIR}/../framework/format/build/layer/${ANDROID_ABI})
@@ -36,22 +53,8 @@ target_link_libraries(VkLayer_gfxreconstruct
                       android
                       log)
 
-# Generate the OpenXR JSON for Android so that it will get picked up and
-# placed in the "assets" folder of the AAR and thus any APK file that
-# later includes it.
-option(GFXRECON_ENABLE_OPENXR "Enable OpenXR support." ON)
+
 if (GFXRECON_ENABLE_OPENXR)
-    file(TO_NATIVE_PATH "./" RELATIVE_PATH_PREFIX)
-    string(REPLACE "\\" "\\\\" RELATIVE_PATH_PREFIX "${RELATIVE_PATH_PREFIX}")
-    include("FindOpenXRVersion")
-
-    if ((NOT XR_VERSION_MAJOR STREQUAL "") AND (NOT XR_VERSION_MINOR STREQUAL ""))
-	    message(STATUS "OpenXR support enabled")
-        set(OPENXR_SUPPORT_ENABLED TRUE)
-    else()
-	    message(FATAL_ERROR "Failed to find OpenXR headers for support.  Continuing with it disabled!")
-    endif()
-
     include("FindVulkanVersion")
 
     set(XR_VERSION ${XR_VERSION_MAJOR}.${XR_VERSION_MINOR}.${XR_VERSION_PATCH})

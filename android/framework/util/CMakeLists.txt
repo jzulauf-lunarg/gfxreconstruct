@@ -54,8 +54,9 @@ target_sources(gfxrecon_util
                    ${GFXRECON_SOURCE_DIR}/framework/util/options.cpp
                    ${GFXRECON_SOURCE_DIR}/framework/util/zstd_compressor.h
                    ${GFXRECON_SOURCE_DIR}/framework/util/zstd_compressor.cpp
-                   ${GFXRECON_SOURCE_DIR}/framework/generated/generated_openxr_enum_to_string.h
-                   ${GFXRECON_SOURCE_DIR}/framework/generated/generated_openxr_enum_to_string.cpp
+                   $<$<BOOL:${OPENXR_SUPPORT_ENABLED}>:${GFXRECON_SOURCE_DIR}/framework/generated/generated_openxr_enum_to_string.h>
+                   $<$<BOOL:${OPENXR_SUPPORT_ENABLED}>:${GFXRECON_SOURCE_DIR}/framework/generated/generated_openxr_enum_to_string.cpp>
+                   $<$<BOOL:${OPENXR_SUPPORT_ENABLED}>:${GFXRECON_SOURCE_DIR}/framework/generated/generated_openxr_type_util.h>
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_enum_to_string.h
                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_enum_to_string.cpp
               )
