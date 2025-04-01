@@ -115,14 +115,14 @@ class OpenXrExportJsonConsumerBase : public OpenXrConsumer
                                           XrResult                                            returnValue,
                                           StructPointerDecoder<Decoded_XrInstanceCreateInfo>* info,
                                           StructPointerDecoder<Decoded_XrApiLayerCreateInfo>* layerInfo,
-                                          HandlePointerDecoder<XrInstance>*                   instance);
+                                          HandlePointerDecoder<XrInstance>*                   instance) override;
 
     void Process_xrEnumerateSwapchainImages(const ApiCallInfo&        call_info,
                                             XrResult                  returnValue,
                                             format::HandleId          swapchain,
                                             uint32_t                  imageCapacityInput,
                                             PointerDecoder<uint32_t>* imageCountOutput,
-                                            StructPointerDecoder<Decoded_XrSwapchainImageBaseHeader>* images);
+                                            StructPointerDecoder<Decoded_XrSwapchainImageBaseHeader>* images) override;
 
     void Process_xrPollEvent(const ApiCallInfo&                               call_info,
                              XrResult                                         returnValue,
