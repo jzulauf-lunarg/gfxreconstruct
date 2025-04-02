@@ -62,9 +62,8 @@ class OpenXrNextNode
 struct OpenXrMetaStructHeader
 {
     XrStructureType* type;
-    OpenXrNextNode* next;
+    OpenXrNextNode*  next;
 };
-
 
 template <typename T>
 const T* GetNextMetaStruct(const OpenXrNextNode* next)

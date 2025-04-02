@@ -205,7 +205,7 @@ void OpenXrCaptureManager::WriteViewRelativeLocationMetadata(const XrSession    
     if (session_data.view_ref_space == XR_NULL_HANDLE)
         return;
 
-    SpaceSet found_spaces;
+    SpaceSet                                   found_spaces;
     const XrCompositionLayerBaseHeader* const* layers = frameEndInfo.layers;
     for (uint32_t layer_index = 0; layer_index < frameEndInfo.layerCount; layer_index++)
     {
@@ -227,7 +227,7 @@ void OpenXrCaptureManager::WriteViewRelativeLocationMetadata(const XrSession    
 
     // Same session for all spaces
     format::ViewRelativeLocation& location = location_cmd.location;
-    location.session_id = openxr_wrappers::GetWrappedId<openxr_wrappers::SessionWrapper>(session);
+    location.session_id                    = openxr_wrappers::GetWrappedId<openxr_wrappers::SessionWrapper>(session);
 
     for (const XrSpace space : found_spaces)
     {
@@ -237,7 +237,7 @@ void OpenXrCaptureManager::WriteViewRelativeLocationMetadata(const XrSession    
 
         location.space_id = openxr_wrappers::GetWrappedId<openxr_wrappers::SpaceWrapper>(space);
 
-        location.flags                            = space_location.locationFlags;
+        location.flags = space_location.locationFlags;
 
         location.qx = space_location.pose.orientation.x;
         location.qy = space_location.pose.orientation.y;

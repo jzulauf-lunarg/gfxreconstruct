@@ -1754,7 +1754,7 @@ inline void CreateWrappedHandle<SessionWrapper, NoParentWrapper, EnvironmentDept
     XrSession parent,
     NoParentWrapper::HandleType, // Does not have a co-parent
     XrEnvironmentDepthProviderMETA* handle,
-    PFN_GetHandleId            get_id)
+    PFN_GetHandleId                 get_id)
 {
     assert(parent != XR_NULL_HANDLE);
     assert(handle != nullptr);
@@ -1784,11 +1784,12 @@ inline void CreateWrappedHandle<SessionWrapper, NoParentWrapper, EnvironmentDept
 }
 
 template <>
-inline void CreateWrappedHandle<EnvironmentDepthProviderMETAWrapper, NoParentWrapper, EnvironmentDepthSwapchainMETAWrapper>(
+inline void
+CreateWrappedHandle<EnvironmentDepthProviderMETAWrapper, NoParentWrapper, EnvironmentDepthSwapchainMETAWrapper>(
     XrEnvironmentDepthProviderMETA parent,
     NoParentWrapper::HandleType, // Does not have a co-parent
     XrEnvironmentDepthSwapchainMETA* handle,
-    PFN_GetHandleId            get_id)
+    PFN_GetHandleId                  get_id)
 {
     assert(parent != XR_NULL_HANDLE);
     assert(handle != nullptr);
@@ -1808,7 +1809,8 @@ inline void CreateWrappedHandle<EnvironmentDepthProviderMETAWrapper, NoParentWra
 
     if (wrapper == nullptr)
     {
-        CreateWrappedDispatchHandle<EnvironmentDepthProviderMETAWrapper, EnvironmentDepthSwapchainMETAWrapper>(parent, handle, get_id);
+        CreateWrappedDispatchHandle<EnvironmentDepthProviderMETAWrapper, EnvironmentDepthSwapchainMETAWrapper>(
+            parent, handle, get_id);
 
         wrapper                  = GetWrapper<EnvironmentDepthSwapchainMETAWrapper>(*handle);
         wrapper->layer_table_ref = parent_wrapper->layer_table_ref;

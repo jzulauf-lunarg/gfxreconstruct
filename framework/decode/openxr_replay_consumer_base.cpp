@@ -737,8 +737,8 @@ void OpenXrReplayConsumerBase::UpdateState_xrCreateSession(
     HandlePointerDecoder<XrSession>*                   session,
     XrResult                                           replay_result)
 {
-    Decoded_XrSessionCreateInfo* decoded_info   = createInfo->GetMetaStructPointer();
-    SessionData&                 session_data   = AddSessionData(*session->GetPointer());
+    Decoded_XrSessionCreateInfo* decoded_info = createInfo->GetMetaStructPointer();
+    SessionData&                 session_data = AddSessionData(*session->GetPointer());
     session_data.AddGraphicsBinding(MakeGraphicsBinding(decoded_info));
 }
 

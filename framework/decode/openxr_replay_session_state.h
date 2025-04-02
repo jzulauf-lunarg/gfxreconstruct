@@ -131,7 +131,7 @@ class SessionData : public BaseReplayData<XrSession>
     XrTime last_display_time_ = XrTime();
 
     // These are the replay handles
-    GraphicsBinding graphics_binding_;
+    GraphicsBinding                      graphics_binding_;
     std::unordered_set<format::HandleId> swapchains_;
 };
 

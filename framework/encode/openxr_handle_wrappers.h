@@ -236,9 +236,9 @@ struct EnvironmentDepthSwapchainMETAWrapper;
 
 struct EnvironmentDepthProviderMETAWrapper : public HandleWrapper<XrEnvironmentDepthProviderMETA>
 {
-    OpenXrInstanceTable*  layer_table_ref{ nullptr };
-    SessionWrapper*        parent_wrapper{ nullptr };
-    void                  DeleteFromParent()
+    OpenXrInstanceTable* layer_table_ref{ nullptr };
+    SessionWrapper*      parent_wrapper{ nullptr };
+    void                 DeleteFromParent()
     {
         if (parent_wrapper != nullptr)
         {
@@ -247,7 +247,7 @@ struct EnvironmentDepthProviderMETAWrapper : public HandleWrapper<XrEnvironmentD
         }
     }
 
-    std::vector<EnvironmentDepthSwapchainMETAWrapper*>     child_envdepthswapchainmetas;
+    std::vector<EnvironmentDepthSwapchainMETAWrapper*> child_envdepthswapchainmetas;
 };
 
 // Vendor wrappers
@@ -507,9 +507,9 @@ struct PassthroughColorLutMETAWrapper : public HandleWrapper<XrPassthroughColorL
 
 struct EnvironmentDepthSwapchainMETAWrapper : public HandleWrapper<XrEnvironmentDepthSwapchainMETA>
 {
-    OpenXrInstanceTable*  layer_table_ref{ nullptr };
-    EnvironmentDepthProviderMETAWrapper*        parent_wrapper{ nullptr };
-    void                  DeleteFromParent()
+    OpenXrInstanceTable*                 layer_table_ref{ nullptr };
+    EnvironmentDepthProviderMETAWrapper* parent_wrapper{ nullptr };
+    void                                 DeleteFromParent()
     {
         if (parent_wrapper != nullptr)
         {
