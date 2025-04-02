@@ -53,6 +53,8 @@
 #define _In_reads_opt_(x)
 #define _In_reads_(x)
 
+#define _BOOL_TYPE_ int32_t
+
 typedef void* IDXGIAdapter;
 typedef void* IDXGIAdapter1;
 typedef void* IDXGIAdapter2;
@@ -641,7 +643,7 @@ struct DXGI_OUTPUT_DESC
 {
     wchar_t            DeviceName[32];
     RECT               DesktopCoordinates;
-    BOOL               AttachedToDesktop;
+    _BOOL_TYPE_        AttachedToDesktop;
     DXGI_MODE_ROTATION Rotation;
     HMONITOR           Monitor;
 };
@@ -650,7 +652,7 @@ struct DXGI_OUTPUT_DESC1
 {
     WCHAR                 DeviceName[32];
     RECT                  DesktopCoordinates;
-    BOOL                  AttachedToDesktop;
+    _BOOL_TYPE_           AttachedToDesktop;
     DXGI_MODE_ROTATION    Rotation;
     HMONITOR              Monitor;
     UINT                  BitsPerColor;
@@ -707,7 +709,7 @@ struct DXGI_MODE_DESC1
     DXGI_FORMAT              Format;
     DXGI_MODE_SCANLINE_ORDER ScanlineOrdering;
     DXGI_MODE_SCALING        Scaling;
-    BOOL                     Stereo;
+    _BOOL_TYPE_              Stereo;
 };
 
 struct DXGI_SWAP_CHAIN_DESC
@@ -717,7 +719,7 @@ struct DXGI_SWAP_CHAIN_DESC
     DXGI_USAGE       BufferUsage;
     UINT             BufferCount;
     HWND             OutputWindow;
-    BOOL             Windowed;
+    _BOOL_TYPE_      Windowed;
     DXGI_SWAP_EFFECT SwapEffect;
     UINT             Flags;
 };
@@ -727,7 +729,7 @@ struct DXGI_SWAP_CHAIN_DESC1
     UINT             Width;
     UINT             Height;
     DXGI_FORMAT      Format;
-    BOOL             Stereo;
+    _BOOL_TYPE_      Stereo;
     DXGI_SAMPLE_DESC SampleDesc;
     DXGI_USAGE       BufferUsage;
     UINT             BufferCount;
@@ -785,13 +787,13 @@ struct DXGI_OUTDUPL_DESC
 {
     DXGI_MODE_DESC     ModeDesc;
     DXGI_MODE_ROTATION Rotation;
-    BOOL               DesktopImageInSystemMemory;
+    _BOOL_TYPE_        DesktopImageInSystemMemory;
 };
 
 struct DXGI_OUTDUPL_POINTER_POSITION
 {
     POINT Position;
-    BOOL  Visible;
+    _BOOL_TYPE_ Visible;
 };
 
 struct DXGI_OUTDUPL_POINTER_SHAPE_INFO
@@ -808,8 +810,8 @@ struct DXGI_OUTDUPL_FRAME_INFO
     LARGE_INTEGER                 LastPresentTime;
     LARGE_INTEGER                 LastMouseUpdateTime;
     UINT                          AccumulatedFrames;
-    BOOL                          RectsCoalesced;
-    BOOL                          ProtectedContentMaskedOut;
+    _BOOL_TYPE_                   RectsCoalesced;
+    _BOOL_TYPE_                   ProtectedContentMaskedOut;
     DXGI_OUTDUPL_POINTER_POSITION PointerPosition;
     UINT                          TotalMetadataBufferSize;
     UINT                          PointerShapeBufferSize;
@@ -820,7 +822,7 @@ struct DXGI_SWAP_CHAIN_FULLSCREEN_DESC
     DXGI_RATIONAL            RefreshRate;
     DXGI_MODE_SCANLINE_ORDER ScanlineOrdering;
     DXGI_MODE_SCALING        Scaling;
-    BOOL                     Windowed;
+    _BOOL_TYPE_              Windowed;
 };
 
 struct DXGI_PRESENT_PARAMETERS
@@ -888,7 +890,7 @@ struct DXGI_GAMMA_CONTROL
 
 struct DXGI_GAMMA_CONTROL_CAPABILITIES
 {
-    BOOL  ScaleAndOffsetSupported;
+    _BOOL_TYPE_ ScaleAndOffsetSupported;
     FLOAT MaxConvertedValue;
     FLOAT MinConvertedValue;
     UINT  NumGammaControlPoints;
@@ -4541,10 +4543,10 @@ struct D3D12_DEPTH_STENCILOP_DESC1
 
 struct D3D12_DEPTH_STENCIL_DESC
 {
-    BOOL                       DepthEnable;
+    _BOOL_TYPE_                DepthEnable;
     D3D12_DEPTH_WRITE_MASK     DepthWriteMask;
     D3D12_COMPARISON_FUNC      DepthFunc;
-    BOOL                       StencilEnable;
+    _BOOL_TYPE_                StencilEnable;
     UINT8                      StencilReadMask;
     UINT8                      StencilWriteMask;
     D3D12_DEPTH_STENCILOP_DESC FrontFace;
@@ -4553,32 +4555,32 @@ struct D3D12_DEPTH_STENCIL_DESC
 
 struct D3D12_DEPTH_STENCIL_DESC1
 {
-    BOOL                       DepthEnable;
+    _BOOL_TYPE_                DepthEnable;
     D3D12_DEPTH_WRITE_MASK     DepthWriteMask;
     D3D12_COMPARISON_FUNC      DepthFunc;
-    BOOL                       StencilEnable;
+    _BOOL_TYPE_                StencilEnable;
     UINT8                      StencilReadMask;
     UINT8                      StencilWriteMask;
     D3D12_DEPTH_STENCILOP_DESC FrontFace;
     D3D12_DEPTH_STENCILOP_DESC BackFace;
-    BOOL                       DepthBoundsTestEnable;
+    _BOOL_TYPE_                DepthBoundsTestEnable;
 };
 
 struct D3D12_DEPTH_STENCIL_DESC2
 {
-    BOOL                        DepthEnable;
+    _BOOL_TYPE_                 DepthEnable;
     D3D12_DEPTH_WRITE_MASK      DepthWriteMask;
     D3D12_COMPARISON_FUNC       DepthFunc;
-    BOOL                        StencilEnable;
+    _BOOL_TYPE_                 StencilEnable;
     D3D12_DEPTH_STENCILOP_DESC1 FrontFace;
     D3D12_DEPTH_STENCILOP_DESC1 BackFace;
-    BOOL                        DepthBoundsTestEnable;
+    _BOOL_TYPE_                 DepthBoundsTestEnable;
 };
 
 struct D3D12_RENDER_TARGET_BLEND_DESC
 {
-    BOOL           BlendEnable;
-    BOOL           LogicOpEnable;
+    _BOOL_TYPE_    BlendEnable;
+    _BOOL_TYPE_    LogicOpEnable;
     D3D12_BLEND    SrcBlend;
     D3D12_BLEND    DestBlend;
     D3D12_BLEND_OP BlendOp;
@@ -4591,8 +4593,8 @@ struct D3D12_RENDER_TARGET_BLEND_DESC
 
 struct D3D12_BLEND_DESC
 {
-    BOOL                           AlphaToCoverageEnable;
-    BOOL                           IndependentBlendEnable;
+    _BOOL_TYPE_                    AlphaToCoverageEnable;
+    _BOOL_TYPE_                    IndependentBlendEnable;
     D3D12_RENDER_TARGET_BLEND_DESC RenderTarget[8];
 };
 
@@ -4627,13 +4629,13 @@ struct D3D12_RASTERIZER_DESC
 {
     D3D12_FILL_MODE                       FillMode;
     D3D12_CULL_MODE                       CullMode;
-    BOOL                                  FrontCounterClockwise;
+    _BOOL_TYPE_                           FrontCounterClockwise;
     INT                                   DepthBias;
     FLOAT                                 DepthBiasClamp;
     FLOAT                                 SlopeScaledDepthBias;
-    BOOL                                  DepthClipEnable;
-    BOOL                                  MultisampleEnable;
-    BOOL                                  AntialiasedLineEnable;
+    _BOOL_TYPE_                           DepthClipEnable;
+    _BOOL_TYPE_                           MultisampleEnable;
+    _BOOL_TYPE_                           AntialiasedLineEnable;
     UINT                                  ForcedSampleCount;
     D3D12_CONSERVATIVE_RASTERIZATION_MODE ConservativeRaster;
 };
@@ -4642,13 +4644,13 @@ struct D3D12_RASTERIZER_DESC1
 {
     D3D12_FILL_MODE                       FillMode;
     D3D12_CULL_MODE                       CullMode;
-    BOOL                                  FrontCounterClockwise;
+    _BOOL_TYPE_                           FrontCounterClockwise;
     FLOAT                                 DepthBias;
     FLOAT                                 DepthBiasClamp;
     FLOAT                                 SlopeScaledDepthBias;
-    BOOL                                  DepthClipEnable;
-    BOOL                                  MultisampleEnable;
-    BOOL                                  AntialiasedLineEnable;
+    _BOOL_TYPE_                           DepthClipEnable;
+    _BOOL_TYPE_                           MultisampleEnable;
+    _BOOL_TYPE_                           AntialiasedLineEnable;
     UINT                                  ForcedSampleCount;
     D3D12_CONSERVATIVE_RASTERIZATION_MODE ConservativeRaster;
 };
@@ -4657,11 +4659,11 @@ struct D3D12_RASTERIZER_DESC2
 {
     D3D12_FILL_MODE                       FillMode;
     D3D12_CULL_MODE                       CullMode;
-    BOOL                                  FrontCounterClockwise;
+    _BOOL_TYPE_                           FrontCounterClockwise;
     FLOAT                                 DepthBias;
     FLOAT                                 DepthBiasClamp;
     FLOAT                                 SlopeScaledDepthBias;
-    BOOL                                  DepthClipEnable;
+    _BOOL_TYPE_                           DepthClipEnable;
     D3D12_LINE_RASTERIZATION_MODE         LineRasterizationMode;
     UINT                                  ForcedSampleCount;
     D3D12_CONSERVATIVE_RASTERIZATION_MODE ConservativeRaster;
@@ -4709,19 +4711,19 @@ struct D3D12_RT_FORMAT_ARRAY
 
 struct D3D11_FEATURE_DATA_D3D11_OPTIONS
 {
-    BOOL OutputMergerLogicOp;
-    BOOL UAVOnlyRenderingForcedSampleCount;
-    BOOL DiscardAPIsSeenByDriver;
-    BOOL FlagsForUpdateAndCopySeenByDriver;
-    BOOL ClearView;
-    BOOL CopyWithOverlap;
-    BOOL ConstantBufferPartialUpdate;
-    BOOL ConstantBufferOffsetting;
-    BOOL MapNoOverwriteOnDynamicConstantBuffer;
-    BOOL MapNoOverwriteOnDynamicBufferSRV;
-    BOOL MultisampleRTVWithForcedSampleCountOne;
-    BOOL SAD4ShaderInstructions;
-    BOOL ExtendedDoublesShaderInstructions;
+    _BOOL_TYPE_ OutputMergerLogicOp;
+    _BOOL_TYPE_ UAVOnlyRenderingForcedSampleCount;
+    _BOOL_TYPE_ DiscardAPIsSeenByDriver;
+    _BOOL_TYPE_ FlagsForUpdateAndCopySeenByDriver;
+    _BOOL_TYPE_ ClearView;
+    _BOOL_TYPE_ CopyWithOverlap;
+    _BOOL_TYPE_ ConstantBufferPartialUpdate;
+    _BOOL_TYPE_ ConstantBufferOffsetting;
+    _BOOL_TYPE_ MapNoOverwriteOnDynamicConstantBuffer;
+    _BOOL_TYPE_ MapNoOverwriteOnDynamicBufferSRV;
+    _BOOL_TYPE_ MultisampleRTVWithForcedSampleCountOne;
+    _BOOL_TYPE_ SAD4ShaderInstructions;
+    _BOOL_TYPE_ ExtendedDoublesShaderInstructions;
 };
 
 struct D3D12_FEATURE_DATA_GPU_VIRTUAL_ADDRESS_SUPPORT
@@ -4732,7 +4734,7 @@ struct D3D12_FEATURE_DATA_GPU_VIRTUAL_ADDRESS_SUPPORT
 
 struct D3D11_FEATURE_DATA_D3D11_OPTIONS3
 {
-    BOOL VPAndRTArrayIndexFromAnyShaderFeedingRasterizer;
+    _BOOL_TYPE_ VPAndRTArrayIndexFromAnyShaderFeedingRasterizer;
 };
 
 struct D3D12_FEATURE_DATA_ROOT_SIGNATURE
@@ -4743,18 +4745,18 @@ struct D3D12_FEATURE_DATA_ROOT_SIGNATURE
 struct D3D12_FEATURE_DATA_ARCHITECTURE
 {
     UINT NodeIndex;
-    BOOL TileBasedRenderer;
-    BOOL UMA;
-    BOOL CacheCoherentUMA;
+    _BOOL_TYPE_ TileBasedRenderer;
+    _BOOL_TYPE_ UMA;
+    _BOOL_TYPE_ CacheCoherentUMA;
 };
 
 struct D3D12_FEATURE_DATA_ARCHITECTURE1
 {
     UINT NodeIndex;
-    BOOL TileBasedRenderer;
-    BOOL UMA;
-    BOOL CacheCoherentUMA;
-    BOOL IsolatedMMU;
+    _BOOL_TYPE_ TileBasedRenderer;
+    _BOOL_TYPE_ UMA;
+    _BOOL_TYPE_ CacheCoherentUMA;
+    _BOOL_TYPE_ IsolatedMMU;
 };
 
 struct D3D12_FEATURE_DATA_FEATURE_LEVELS
@@ -4799,85 +4801,85 @@ struct D3D12_FEATURE_DATA_COMMAND_QUEUE_PRIORITY
 {
     D3D12_COMMAND_LIST_TYPE CommandListType;
     UINT                    Priority;
-    BOOL                    PriorityForTypeIsSupported;
+    _BOOL_TYPE_             PriorityForTypeIsSupported;
 };
 
 struct D3D12_FEATURE_DATA_EXISTING_HEAPS
 {
-    BOOL Supported;
+    _BOOL_TYPE_ Supported;
 };
 
 struct D3D12_FEATURE_DATA_DISPLAYABLE
 {
-    BOOL                                     DisplayableTexture;
+    _BOOL_TYPE_                              DisplayableTexture;
     D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER SharedResourceCompatibilityTier;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS
 {
-    BOOL                                  DoublePrecisionFloatShaderOps;
-    BOOL                                  OutputMergerLogicOp;
+    _BOOL_TYPE_                           DoublePrecisionFloatShaderOps;
+    _BOOL_TYPE_                           OutputMergerLogicOp;
     D3D12_SHADER_MIN_PRECISION_SUPPORT    MinPrecisionSupport;
     D3D12_TILED_RESOURCES_TIER            TiledResourcesTier;
     D3D12_RESOURCE_BINDING_TIER           ResourceBindingTier;
-    BOOL                                  PSSpecifiedStencilRefSupported;
-    BOOL                                  TypedUAVLoadAdditionalFormats;
-    BOOL                                  ROVsSupported;
+    _BOOL_TYPE_                           PSSpecifiedStencilRefSupported;
+    _BOOL_TYPE_                           TypedUAVLoadAdditionalFormats;
+    _BOOL_TYPE_                           ROVsSupported;
     D3D12_CONSERVATIVE_RASTERIZATION_TIER ConservativeRasterizationTier;
     UINT                                  MaxGPUVirtualAddressBitsPerResource;
-    BOOL                                  StandardSwizzle64KBSupported;
+    _BOOL_TYPE_                           StandardSwizzle64KBSupported;
     D3D12_CROSS_NODE_SHARING_TIER         CrossNodeSharingTier;
-    BOOL                                  CrossAdapterRowMajorTextureSupported;
-    BOOL                                  VPAndRTArrayIndexFromAnyShaderFeedingRasterizerSupportedWithoutGSEmulation;
+    _BOOL_TYPE_                           CrossAdapterRowMajorTextureSupported;
+    _BOOL_TYPE_                           VPAndRTArrayIndexFromAnyShaderFeedingRasterizerSupportedWithoutGSEmulation;
     D3D12_RESOURCE_HEAP_TIER              ResourceHeapTier;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS1
 {
-    BOOL WaveOps;
+    _BOOL_TYPE_ WaveOps;
     UINT WaveLaneCountMin;
     UINT WaveLaneCountMax;
     UINT TotalLaneCount;
-    BOOL ExpandedComputeResourceStates;
-    BOOL Int64ShaderOps;
+    _BOOL_TYPE_ ExpandedComputeResourceStates;
+    _BOOL_TYPE_ Int64ShaderOps;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS2
 {
-    BOOL                                     DepthBoundsTestSupported;
+    _BOOL_TYPE_                              DepthBoundsTestSupported;
     D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER ProgrammableSamplePositionsTier;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS3
 {
-    BOOL                             CopyQueueTimestampQueriesSupported;
-    BOOL                             CastingFullyTypedFormatSupported;
+    _BOOL_TYPE_                      CopyQueueTimestampQueriesSupported;
+    _BOOL_TYPE_                      CastingFullyTypedFormatSupported;
     D3D12_COMMAND_LIST_SUPPORT_FLAGS WriteBufferImmediateSupportFlags;
     D3D12_VIEW_INSTANCING_TIER       ViewInstancingTier;
-    BOOL                             BarycentricsSupported;
+    _BOOL_TYPE_                      BarycentricsSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS4
 {
-    BOOL                                     MSAA64KBAlignedTextureSupported;
+    _BOOL_TYPE_                              MSAA64KBAlignedTextureSupported;
     D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER SharedResourceCompatibilityTier;
-    BOOL                                     Native16BitShaderOpsSupported;
+    _BOOL_TYPE_                              Native16BitShaderOpsSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS5
 {
-    BOOL                   SRVOnlyTiledResourceTier3;
+    _BOOL_TYPE_            SRVOnlyTiledResourceTier3;
     D3D12_RENDER_PASS_TIER RenderPassesTier;
     D3D12_RAYTRACING_TIER  RaytracingTier;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS6
 {
-    BOOL                             AdditionalShadingRatesSupported;
-    BOOL                             PerPrimitiveShadingRateSupportedWithViewportIndexing;
+    _BOOL_TYPE_                      AdditionalShadingRatesSupported;
+    _BOOL_TYPE_                      PerPrimitiveShadingRateSupportedWithViewportIndexing;
     D3D12_VARIABLE_SHADING_RATE_TIER VariableShadingRateTier;
     UINT                             ShadingRateImageTileSize;
-    BOOL                             BackgroundProcessingSupported;
+    _BOOL_TYPE_                      BackgroundProcessingSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS7
@@ -4888,75 +4890,75 @@ struct D3D12_FEATURE_DATA_D3D12_OPTIONS7
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS8
 {
-    BOOL UnalignedBlockTexturesSupported;
+    _BOOL_TYPE_ UnalignedBlockTexturesSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS9
 {
-    BOOL                MeshShaderPipelineStatsSupported;
-    BOOL                MeshShaderSupportsFullRangeRenderTargetArrayIndex;
-    BOOL                AtomicInt64OnTypedResourceSupported;
-    BOOL                AtomicInt64OnGroupSharedSupported;
-    BOOL                DerivativesInMeshAndAmplificationShadersSupported;
+    _BOOL_TYPE_         MeshShaderPipelineStatsSupported;
+    _BOOL_TYPE_         MeshShaderSupportsFullRangeRenderTargetArrayIndex;
+    _BOOL_TYPE_         AtomicInt64OnTypedResourceSupported;
+    _BOOL_TYPE_         AtomicInt64OnGroupSharedSupported;
+    _BOOL_TYPE_         DerivativesInMeshAndAmplificationShadersSupported;
     D3D12_WAVE_MMA_TIER WaveMMATier;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS10
 {
-    BOOL VariableRateShadingSumCombinerSupported;
-    BOOL MeshShaderPerPrimitiveShadingRateSupported;
+    _BOOL_TYPE_ VariableRateShadingSumCombinerSupported;
+    _BOOL_TYPE_ MeshShaderPerPrimitiveShadingRateSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS11
 {
-    BOOL AtomicInt64OnDescriptorHeapResourceSupported;
+    _BOOL_TYPE_ AtomicInt64OnDescriptorHeapResourceSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS12
 {
     D3D12_TRI_STATE MSPrimitivesPipelineStatisticIncludesCulledPrimitives;
-    BOOL            EnhancedBarriersSupported;
-    BOOL            RelaxedFormatCastingSupported;
+    _BOOL_TYPE_     EnhancedBarriersSupported;
+    _BOOL_TYPE_     RelaxedFormatCastingSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS13
 {
-    BOOL UnrestrictedBufferTextureCopyPitchSupported;
-    BOOL UnrestrictedVertexElementAlignmentSupported;
-    BOOL InvertedViewportHeightFlipsYSupported;
-    BOOL InvertedViewportDepthFlipsZSupported;
-    BOOL TextureCopyBetweenDimensionsSupported;
-    BOOL AlphaBlendFactorSupported;
+    _BOOL_TYPE_ UnrestrictedBufferTextureCopyPitchSupported;
+    _BOOL_TYPE_ UnrestrictedVertexElementAlignmentSupported;
+    _BOOL_TYPE_ InvertedViewportHeightFlipsYSupported;
+    _BOOL_TYPE_ InvertedViewportDepthFlipsZSupported;
+    _BOOL_TYPE_ TextureCopyBetweenDimensionsSupported;
+    _BOOL_TYPE_ AlphaBlendFactorSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS14
 {
-    BOOL AdvancedTextureOpsSupported;
-    BOOL WriteableMSAATexturesSupported;
-    BOOL IndependentFrontAndBackStencilRefMaskSupported;
+    _BOOL_TYPE_ AdvancedTextureOpsSupported;
+    _BOOL_TYPE_ WriteableMSAATexturesSupported;
+    _BOOL_TYPE_ IndependentFrontAndBackStencilRefMaskSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS15
 {
-    BOOL TriangleFanSupported;
-    BOOL DynamicIndexBufferStripCutSupported;
+    _BOOL_TYPE_ TriangleFanSupported;
+    _BOOL_TYPE_ DynamicIndexBufferStripCutSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS16
 {
-    BOOL DynamicDepthBiasSupported;
-    BOOL GPUUploadHeapSupported;
+    _BOOL_TYPE_ DynamicDepthBiasSupported;
+    _BOOL_TYPE_ GPUUploadHeapSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS17
 {
-    BOOL NonNormalizedCoordinateSamplersSupported;
-    BOOL ManualWriteTrackingResourceSupported;
+    _BOOL_TYPE_ NonNormalizedCoordinateSamplersSupported;
+    _BOOL_TYPE_ ManualWriteTrackingResourceSupported;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS18
 {
-    BOOL RenderPassesValid;
+    _BOOL_TYPE_ RenderPassesValid;
 };
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS19
@@ -4982,7 +4984,7 @@ struct D3D12_FEATURE_DATA_SERIALIZATION
 struct D3D12_FEATURE_DATA_CROSS_NODE
 {
     D3D12_CROSS_NODE_SHARING_TIER SharingTier;
-    BOOL                          AtomicShaderInstructions;
+    _BOOL_TYPE_                   AtomicShaderInstructions;
 };
 
 struct D3D12_FEATURE_DATA_QUERY_META_COMMAND
@@ -5103,7 +5105,7 @@ struct D3D12_TILED_RESOURCE_COORDINATE
 struct D3D12_TILE_REGION_SIZE
 {
     UINT   NumTiles;
-    BOOL   UseBox;
+    _BOOL_TYPE_ UseBox;
     UINT   Width;
     UINT16 Height;
     UINT16 Depth;
@@ -6169,7 +6171,7 @@ struct D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_PARAMETERS
     const D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS* pSubresourceParameters;
     DXGI_FORMAT                                                           Format;
     D3D12_RESOLVE_MODE                                                    ResolveMode;
-    BOOL                                                                  PreserveResolveSource;
+    _BOOL_TYPE_                                                           PreserveResolveSource;
 };
 
 struct D3D12_RENDER_PASS_ENDING_ACCESS_PRESERVE_LOCAL_PARAMETERS
@@ -6530,7 +6532,7 @@ struct D3D12_FEATURE_DATA_PLACED_RESOURCE_SUPPORT_INFO
     _In_ DXGI_FORMAT              Format;
     _In_ D3D12_RESOURCE_DIMENSION Dimension;
     _In_ D3D12_HEAP_PROPERTIES    DestHeapProperties;
-    _Out_ BOOL                    Supported;
+    _Out_ _BOOL_TYPE_             Supported;
 };
 
 enum D3D12_WORK_GRAPHS_TIER
@@ -6547,7 +6549,7 @@ enum D3D12_RECREATE_AT_TIER
 
 struct D3D12_FEATURE_DATA_D3D12_OPTIONS20
 {
-    _Out_ BOOL             ComputeOnlyWriteWatchSupported;
+    _Out_ _BOOL_TYPE_      ComputeOnlyWriteWatchSupported;
     D3D12_RECREATE_AT_TIER RecreateAtTier;
 };
 
@@ -6561,23 +6563,23 @@ struct D3D12_FEATURE_DATA_D3D12_OPTIONS21
 {
     _Out_ D3D12_WORK_GRAPHS_TIER      WorkGraphsTier;
     _Out_ D3D12_EXECUTE_INDIRECT_TIER ExecuteIndirectTier;
-    _Out_ BOOL                        SampleCmpGradientAndBiasSupported;
-    _Out_ BOOL                        ExtendedCommandInfoSupported;
+    _Out_ _BOOL_TYPE_                 SampleCmpGradientAndBiasSupported;
+    _Out_ _BOOL_TYPE_                 ExtendedCommandInfoSupported;
 };
 
 struct D3D12_FEATURE_DATA_PREDICATION
 {
-    _Out_ BOOL Supported;
+    _Out_ _BOOL_TYPE_ Supported;
 };
 
 struct D3D12_FEATURE_DATA_HARDWARE_COPY
 {
-    _Out_ BOOL Supported;
+    _Out_ _BOOL_TYPE_ Supported;
 };
 
 struct D3D12_FEATURE_DATA_BYTECODE_BYPASS_HASH_SUPPORTED
 {
-    _Out_ BOOL Supported;
+    _Out_ _BOOL_TYPE_ Supported;
 };
 
 struct D3D12_NODE_ID
@@ -6597,7 +6599,7 @@ struct D3D12_NODE_OUTPUT_OVERRIDES
 {
     UINT                          OutputIndex;
     _In_opt_ const D3D12_NODE_ID* pNewName;
-    _In_opt_ const BOOL*          pAllowSparseNodes;
+    _In_opt_ const _BOOL_TYPE_*   pAllowSparseNodes;
     _In_opt_ const UINT*          pMaxRecords;
     _In_opt_ const UINT*          pMaxRecordsSharedWithOutputIndex;
 };
@@ -6605,7 +6607,7 @@ struct D3D12_NODE_OUTPUT_OVERRIDES
 struct D3D12_BROADCASTING_LAUNCH_OVERRIDES
 {
     _In_opt_ const UINT*          pLocalRootArgumentsTableIndex;
-    _In_opt_ const BOOL*          pProgramEntry;
+    _In_opt_ const _BOOL_TYPE_*   pProgramEntry;
     _In_opt_ const D3D12_NODE_ID* pNewName;
     _In_opt_ const D3D12_NODE_ID* pShareInputOf;
     _In_reads_opt_(3) const UINT* pDispatchGrid;
@@ -6617,7 +6619,7 @@ struct D3D12_BROADCASTING_LAUNCH_OVERRIDES
 struct D3D12_COALESCING_LAUNCH_OVERRIDES
 {
     _In_opt_ const UINT*          pLocalRootArgumentsTableIndex;
-    _In_opt_ const BOOL*          pProgramEntry;
+    _In_opt_ const _BOOL_TYPE_*   pProgramEntry;
     _In_opt_ const D3D12_NODE_ID* pNewName;
     _In_opt_ const D3D12_NODE_ID* pShareInputOf;
     UINT                          NumOutputOverrides;
@@ -6627,7 +6629,7 @@ struct D3D12_COALESCING_LAUNCH_OVERRIDES
 struct D3D12_THREAD_LAUNCH_OVERRIDES
 {
     _In_opt_ const UINT*          pLocalRootArgumentsTableIndex;
-    _In_opt_ const BOOL*          pProgramEntry;
+    _In_opt_ const _BOOL_TYPE_*   pProgramEntry;
     _In_opt_ const D3D12_NODE_ID* pNewName;
     _In_opt_ const D3D12_NODE_ID* pShareInputOf;
     UINT                          NumOutputOverrides;
@@ -6637,7 +6639,7 @@ struct D3D12_THREAD_LAUNCH_OVERRIDES
 struct D3D12_COMMON_COMPUTE_NODE_OVERRIDES
 {
     _In_opt_ const UINT*          pLocalRootArgumentsTableIndex;
-    _In_opt_ const BOOL*          pProgramEntry;
+    _In_opt_ const _BOOL_TYPE_*   pProgramEntry;
     _In_opt_ const D3D12_NODE_ID* pNewName;
     _In_opt_ const D3D12_NODE_ID* pShareInputOf;
     UINT                          NumOutputOverrides;
