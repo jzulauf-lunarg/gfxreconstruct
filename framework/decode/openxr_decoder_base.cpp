@@ -177,6 +177,36 @@ size_t OpenXrDecoderBase::Decode_xrEnumerateSwapchainImages(const ApiCallInfo& c
     return bytes_read;
 }
 
+size_t
+OpenXrDecoderBase::Decode_xrPollEvent(const ApiCallInfo& call_info, const uint8_t* parameter_buffer, size_t buffer_size)
+{
+    size_t bytes_read = 0;
+
+    format::HandleId                                instance;
+    StructPointerDecoder<Decoded_XrEventDataBuffer> event_data;
+
+    // ...Buffer is validly cast to ...BaseHeader, even though there is not parentstruct relationship in the xml
+    //
+    // Also because the StructPointerDecoder<T> doesn't vary in size or offset based on T (nothing of sizeof(T) is
+    // stored within)
+    StructPointerDecoder<Decoded_XrEventDataBaseHeader>* event_data_base_header =
+        reinterpret_cast<StructPointerDecoder<Decoded_XrEventDataBaseHeader>*>(&event_data);
+    XrResult return_value;
+
+    bytes_read +=
+        ValueDecoder::DecodeHandleIdValue((parameter_buffer + bytes_read), (buffer_size - bytes_read), &instance);
+    bytes_read += event_data_base_header->Decode((parameter_buffer + bytes_read), (buffer_size - bytes_read));
+    bytes_read +=
+        ValueDecoder::DecodeEnumValue((parameter_buffer + bytes_read), (buffer_size - bytes_read), &return_value);
+
+    for (auto consumer : GetConsumers())
+    {
+        consumer->Process_xrPollEvent(call_info, return_value, instance, &event_data);
+    }
+
+    return bytes_read;
+}
+
 GFXRECON_END_NAMESPACE(decode)
 GFXRECON_END_NAMESPACE(gfxrecon)
 

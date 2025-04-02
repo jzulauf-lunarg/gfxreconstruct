@@ -203,6 +203,7 @@ class OpenXrDecoderBase : public ApiDecoder
     size_t Decode_xrEnumerateSwapchainImages(const ApiCallInfo& call_info,
                                              const uint8_t*     parameter_buffer,
                                              size_t             buffer_size);
+    size_t Decode_xrPollEvent(const ApiCallInfo& call_info, const uint8_t* parameter_buffer, size_t buffer_size);
 
   private:
     std::vector<OpenXrConsumer*> consumers_;
