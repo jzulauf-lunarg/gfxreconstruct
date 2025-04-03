@@ -103,28 +103,18 @@ size_t DecodeStruct(const uint8_t* buffer, size_t buffer_size, Decoded_timespec*
     size_t    bytes_read = 0;
     timespec* value      = wrapper->decoded_value;
 
-#ifdef WIN32
+    // timespec types may vary across architectures/OS's but we'll always store as encode/decode as int64/int64
+    int64_t tv_sec;
+    int64_t tv_nsec;
+    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &tv_sec);
+    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &tv_nsec);
 
-#ifdef _USE_32BIT_TIME_T
-    bytes_read += ValueDecoder::DecodeInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_sec));
-#else // !_USE_32BIT_TIME_T
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_sec));
-#endif
-    bytes_read += ValueDecoder::DecodeInt32Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_nsec));
-
-#else // !WIN32
-
-#if defined(__USE_TIME_BITS64) || __WORDSIZE == 64
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_sec));
-    bytes_read += ValueDecoder::DecodeInt64Value((buffer + bytes_read), (buffer_size - bytes_read), &(value->tv_nsec));
-#else
-    bytes_read += ValueDecoder::DecodeInt32Value(
-        (buffer + bytes_read), (buffer_size - bytes_read), reinterpret_cast<int32_t*>(&(value->tv_sec)));
-    bytes_read += ValueDecoder::DecodeUInt32Value(
-        (buffer + bytes_read), (buffer_size - bytes_read), reinterpret_cast<uint32_t*>(&(value->tv_nsec)));
-#endif
-
-#endif
+    // Casts to avoid "narrowing" warnings.
+    // tv_sec is safe for replay for captures before the Epochalypse (2038) on 32 bit time_t architectures
+    // tv_nsec restricted to [0, 999,999,999] by spec, so this is portable and safe, as int32_t is the smallest
+    // int that can store the range.
+    value->tv_sec  = static_cast<time_t>(tv_sec);
+    value->tv_nsec = static_cast<int32_t>(tv_sec);
 
     return bytes_read;
 }

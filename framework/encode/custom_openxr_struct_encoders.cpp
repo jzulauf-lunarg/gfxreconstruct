@@ -60,13 +60,9 @@ void EncodeStruct(ParameterEncoder* encoder, const XrVulkanDeviceCreateInfoKHR& 
 
 void EncodeStruct(ParameterEncoder* encoder, const timespec& value)
 {
-#if defined(__USE_TIME_BITS64) || __WORDSIZE == 64
-    encoder->EncodeInt64Value(value.tv_sec);
-    encoder->EncodeInt64Value(value.tv_nsec);
-#else
-    encoder->EncodeInt32Value(value.tv_sec);
-    encoder->EncodeUInt32Value(value.tv_nsec);
-#endif
+    // timespec types are architecture specific, but we always encode/decode as int64/int64
+    encoder->EncodeInt64Value(static_cast<int64_t>(value.tv_sec));
+    encoder->EncodeInt64Value(static_cast<int64_t>(value.tv_nsec));
 }
 
 GFXRECON_END_NAMESPACE(encode)
