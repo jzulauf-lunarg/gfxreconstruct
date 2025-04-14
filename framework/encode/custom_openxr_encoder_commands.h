@@ -130,6 +130,18 @@ struct CustomEncoderPreCall<format::ApiCallId::ApiCall_xrEndFrame>
     }
 };
 
+template <format::ApiCallId Id>
+struct CustomCallResult
+{
+    static bool Success(OpenXrCaptureManager*, XrResult result) { return XR_SUCCEEDED(result); }
+};
+
+template <>
+struct CustomCallResult<format::ApiCallId::ApiCall_xrPollEvent>
+{
+    static bool Success(OpenXrCaptureManager*, XrResult result) { return XR_UNQUALIFIED_SUCCESS(result); }
+};
+
 GFXRECON_END_NAMESPACE(encode)
 GFXRECON_END_NAMESPACE(gfxrecon)
 
