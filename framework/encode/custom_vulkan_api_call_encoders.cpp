@@ -38,7 +38,7 @@
 #include "util/defines.h"
 
 #include <cassert>
-
+#include <tuple>
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
 
@@ -893,6 +893,311 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice          
         pPipelines);
 
     return result;
+}
+
+template <format::ApiFamilyId FamilyId>
+struct FamilyIdTraits
+{};
+
+// NOTE: Add traits for other API's as needed
+// NOTE: Should probably live in format:: namespace not in custom_vulkan_...
+template <>
+struct FamilyIdTraits<format::ApiFamily_Vulkan>
+{
+    using ApiResultType                      = VkResult;
+    constexpr static const VkResult kSuccess = VK_SUCCESS;
+    using CaptureManagerType                 = VulkanCaptureManager;
+};
+
+template <format::ApiFamilyId FamilyId, typename T = typename FamilyIdTraits<FamilyId>::ApiResultType>
+bool ApiCallSucceeded(T result)
+{
+    return result >= 0; // Matches Vulkan and OpenXR, no need to specialize for them
+}
+
+template <format::ApiFamilyId FamilyId, typename T = typename FamilyIdTraits<FamilyId>::ApiResultType>
+bool ApiCallFailed(T result)
+{
+    return result < 0; // Matches Vulkan and OpenXR, no need to specialize for them
+}
+
+template <format::ApiFamilyId FamilyId, typename T = typename FamilyIdTraits<FamilyId>::ApiResultType>
+bool ApiCallUnqualifiedSuccess(T result)
+{
+    return result == FamilyIdTraits::<FamilyId>::kSuccess; // Matches Vulkan and OpenXR, no need to specialize for them
+}
+
+// NOTE: Should codegen for all custom and non-custom captures for consistency
+template <format::ApiCallId CallId>
+struct ArgPack
+{};
+
+// NOTE: This is an example of an ArgPack
+template <>
+struct ArgPack<format::ApiCallId::ApiCall_vkCreateImage>
+{
+    VkDevice                     device;
+    const VkImageCreateInfo*     pCreateInfo;
+    const VkAllocationCallbacks* pAllocator;
+    VkImage*                     pImage;
+
+#if 0
+    // NOTE: Unclear if want to add this complexity, as we could either convert the Pre/Post calls to take
+    //       ArgPack or can expand in the Pre/Post calls wrapper
+    // Only the argument matching parameters, the result is included below, useful for Dispatch calls, and similar
+    std::tuple<VkDevice&, const VkImageCreateInfo*&, const VkAllocationCallbacks*&, VkImage*&> as_mutable_tuple_view() {
+        return { device, pCreateInfo, pAllocator, pImage };
+    }
+#endif
+
+    // result is added only for non void returning functions, and must be defined
+    // if the dispatched function has a non-null result.
+    VkResult result = VK_ERROR_UNKNOWN;
+};
+
+template <>
+struct ArgPack<format::ApiCallId::ApiCall_vkDestroyImage>
+{
+    using DestroyerFlagType = void; // Only needed to denote Destroyers.
+
+    VkDevice                     device;
+    VkImage                      image;
+    const VkAllocationCallbacks* pAllocator;
+};
+
+// These utility templates allows use to determine information from the declarations
+// in the ArgPack, without requiring explicit declaration in cases where the
+// absences of a declaration is as informative as its presence. (numerical values
+// represent Vulkan ApiCallIds.  It is assumed that other API will be largely similar)
+//
+// HasDestroyerFlag type
+//     Require the ~50 Destroy and Free CallId specializations to declare a type as
+//     as flag, while the ~600 that aren't Destroy and Free declare they *aren't* by
+//     eliding the type.
+template <typename T, typename = void>
+struct HasDestroyerFlagType : std::false_type
+{};
+template <typename T>
+struct HasDestroyerFlagType<T, std::void_t<typename T::DestroyerFlagType>> : std::true_type
+{};
+
+// ResultMemberType
+//     Instead of require explict ResultType declaration in all ArgPack specializations
+//     this template allows the return type of the CallId to be inferred from the type
+//     of the result member.  For void functions, result is not defined, and a void
+//     result type can be inferred.
+//
+//     For Vulkan 2/3 of the entry points are void returning.
+template <typename T, typename = void>
+struct ResultMemberType
+{
+    using type = void;
+};
+template <typename T>
+struct ResultMemberType<T, std::void_t<decltype(std::declval<T>().result)>>
+{
+    using type = decltype(std::declval<T>().result);
+};
+
+template <format::ApiCallId CallId>
+struct CaptureOps
+{
+    using Args                                               = ArgPack<CallId>;
+    using ArgsResultType                                     = typename ResultMemberType<Args>::type;
+    constexpr const static bool                kIsVoidReturn = std::is_void_v<ArgsResultType>;
+    constexpr const static bool                kIsDestroyer  = HasDestroyerFlagType<Args>::value;
+    constexpr const static format::ApiCallId   kCallId       = CallId;
+    constexpr const static format::ApiFamilyId kFamilyId =
+        static_cast<format::ApiFamilyId>(format::GetApiCallFamily(kCallId));
+    using CaptureManager = typename FamilyIdTraits<kFamilyId>::CaptureManagerType;
+
+    template <typename... Args>
+    CaptureOps(Args&&... ctor_args) : args{ std::forward<Args>(ctor_args)... }
+    {}
+    void Dispatch(CaptureManager* manager);
+    bool DispatchFailed() const;
+    void Encode(CaptureManager* manager, ParameterEncoder* encoder) const;
+    void Cleanup(CaptureManager* manager) const {};
+
+    // This can't be constexpr wrapped in caller because destructor unlocks
+    auto DestroyerLock() const
+    {
+        if constexpr (kIsDestroyer)
+        {
+            return ScopedDestroyLock;
+        }
+        else
+        {
+            return int(0);
+        }
+    }
+
+    Args args;
+};
+
+template <format::ApiCallId CallId>
+bool CaptureOps<CallId>::DispatchFailed() const
+{
+    if constexpr (kIsVoidReturn)
+    {
+        return false; // Things that can't tell us they if failed, didn't, or we need to override to determine
+    }
+    else
+    {
+        // Most CallId shouldn't need to overload
+        return ApiCallFailed<kFamilyId, typename ArgsResultType>(args.result);
+    }
+}
+
+template <>
+void CaptureOps<format::ApiCallId::ApiCall_vkCreateImage>::Dispatch(CaptureManager* manager)
+{
+    // If this wasn't Overriden, code gen would emit the actual dispatch call
+    // NOTE: Make the overrides take the arg_pack to simplify codegen even more
+    args.result = manager->OverrideCreateImage(args.device, args.pCreateInfo, args.pAllocator, args.pImage);
+    // args.result = vulkan_wrappers::GetDeviceTable(device)->CreateImage(device, pCreateInfo, pAllocator, pImage);
+    // and any handle wrapper logic.
+}
+
+template <>
+void CaptureOps<format::ApiCallId::ApiCall_vkCreateImage>::Encode(CaptureManager*   manager,
+                                                                  ParameterEncoder* encoder) const
+{
+    // NOTE: This doesn't have to be in the CaptureOps, we could write struct encoders in/for the arg_pack, which could
+    // probably be used
+    //       for encoding even custom api captures, as long as the custom capture fills out the ArgPack
+    bool omit_data = DispatchFailed();
+    encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(args.device);
+    EncodeStructPtr(encoder, args.pCreateInfo);
+    EncodeStructPtr(encoder, args.pAllocator);
+    encoder->EncodeVulkanHandlePtr<vulkan_wrappers::ImageWrapper>(args.pImage, omit_data);
+    encoder->EncodeEnumValue(args.result);
+    manager->EndCreateApiCallCapture<VkDevice, vulkan_wrappers::ImageWrapper, VkImageCreateInfo>(
+        args.result, args.device, args.pImage, args.pCreateInfo);
+};
+
+template <>
+void CaptureOps<format::ApiCallId::ApiCall_vkDestroyImage>::Encode(CaptureManager*   manager,
+                                                                   ParameterEncoder* encoder) const
+{
+    encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(args.device);
+    encoder->EncodeVulkanHandleValue<vulkan_wrappers::ImageWrapper>(args.image);
+    EncodeStructPtr(encoder, args.pAllocator);
+    manager->EndDestroyApiCallCapture<vulkan_wrappers::ImageWrapper>(args.image);
+}
+
+template <>
+void CaptureOps<format::ApiCallId::ApiCall_vkDestroyImage>::Dispatch(CaptureManager* manager)
+{
+    vulkan_wrappers::GetDeviceTable(args.device)->DestroyImage(args.device, args.image, args.pAllocator);
+}
+
+template <>
+void CaptureOps<format::ApiCallId::ApiCall_vkDestroyImage>::Cleanup(CaptureManager* manager) const
+{
+    vulkan_wrappers::DestroyWrappedHandle<vulkan_wrappers::ImageWrapper>(args.image);
+}
+
+template <format::ApiCallId CallId, typename... Args>
+auto Capture(Args&&... args)
+{
+    using Ops = CaptureOps<CallId>;
+    Ops ops(std::forward<Args>(args)...);
+
+    Ops::CaptureManager* manager = Ops::CaptureManager::Get();
+    GFXRECON_ASSERT(manager != nullptr);
+    auto force_command_serialization = manager->GetForceCommandSerialization();
+    std::shared_lock<CommonCaptureManager::ApiCallMutexT> shared_api_call_lock;
+    std::unique_lock<CommonCaptureManager::ApiCallMutexT> exclusive_api_call_lock;
+    if (force_command_serialization)
+    {
+        exclusive_api_call_lock = Ops::CaptureManager::AcquireExclusiveApiCallLock();
+    }
+    else
+    {
+        shared_api_call_lock = Ops::CaptureManager::AcquireSharedApiCallLock();
+    }
+
+    CustomEncoderPreCall<CallId>::Dispatch(manager, ops.args);
+    auto encoder = manager->BeginTrackedApiCallCapture(CallId);
+
+    // Destroy functions pre encode.
+    if (encoder && Ops::kIsDestroyer)
+    {
+        ops.Encode(manager, encoder);
+    }
+
+    // For destroyers this is the scope lock needed, else just an int(0)
+    // Cannot be if constexpr'd here as the lock would be destroyed coming
+    // out of the if constexpr block.
+    auto lock = ops.DestroyerLock();
+
+    // The dispatch call is responsible for any unwrapping, and wrapping operations
+    ops.Dispatch(manager);
+
+    // Non-Destroy functions post encode.
+    if (encoder && !Ops::kIsDestroyer)
+    {
+        ops.Encode(manager, encoder);
+    }
+
+    if constexpr (Ops::kIsVoidReturn)
+    {
+        CustomEncoderPostCall<CallId>::Dispatch(manager, ops.args);
+    }
+    else
+    {
+        CustomEncoderPostCall<CallId>::Dispatch(manager, ops.args.result, ops.args);
+    }
+
+    ops.Cleanup(manager);
+    if constexpr (Ops::kIsVoidReturn)
+        return;
+    else
+        return ops.args.result;
+};
+
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateImage(VkDevice                     device,
+                                             const VkImageCreateInfo*     pCreateInfo,
+                                             const VkAllocationCallbacks* pAllocator,
+                                             VkImage*                     pImage)
+{
+    return Capture<format::ApiCallId::ApiCall_vkCreateImage>(device, pCreateInfo, pAllocator, pImage);
+}
+
+VKAPI_ATTR void VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAllocationCallbacks* pAllocator)
+{
+    VulkanCaptureManager* manager = VulkanCaptureManager::Get();
+    GFXRECON_ASSERT(manager != nullptr);
+    auto force_command_serialization = manager->GetForceCommandSerialization();
+    std::shared_lock<CommonCaptureManager::ApiCallMutexT> shared_api_call_lock;
+    std::unique_lock<CommonCaptureManager::ApiCallMutexT> exclusive_api_call_lock;
+    if (force_command_serialization)
+    {
+        exclusive_api_call_lock = VulkanCaptureManager::AcquireExclusiveApiCallLock();
+    }
+    else
+    {
+        shared_api_call_lock = VulkanCaptureManager::AcquireSharedApiCallLock();
+    }
+
+    CustomEncoderPreCall<format::ApiCallId::ApiCall_vkDestroyImage>::Dispatch(manager, device, image, pAllocator);
+
+    auto encoder = manager->BeginTrackedApiCallCapture(format::ApiCallId::ApiCall_vkDestroyImage);
+    if (encoder)
+    {
+        encoder->EncodeVulkanHandleValue<vulkan_wrappers::DeviceWrapper>(device);
+        encoder->EncodeVulkanHandleValue<vulkan_wrappers::ImageWrapper>(image);
+        EncodeStructPtr(encoder, pAllocator);
+        manager->EndDestroyApiCallCapture<vulkan_wrappers::ImageWrapper>(image);
+    }
+
+    ScopedDestroyLock exclusive_scoped_lock;
+    vulkan_wrappers::GetDeviceTable(device)->DestroyImage(device, image, pAllocator);
+
+    CustomEncoderPostCall<format::ApiCallId::ApiCall_vkDestroyImage>::Dispatch(manager, device, image, pAllocator);
+
+    vulkan_wrappers::DestroyWrappedHandle<vulkan_wrappers::ImageWrapper>(image);
 }
 
 GFXRECON_END_NAMESPACE(encode)

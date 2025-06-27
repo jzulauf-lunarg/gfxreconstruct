@@ -518,10 +518,11 @@ struct CustomEncoderPostCall<format::ApiCallId::ApiCall_vkCreateBuffer>
 template <>
 struct CustomEncoderPostCall<format::ApiCallId::ApiCall_vkCreateImage>
 {
-    template <typename... Args>
-    static void Dispatch(VulkanCaptureManager* manager, VkResult result, Args... args)
+    template <typename ArgPack>
+    static void Dispatch(VulkanCaptureManager* manager, VkResult result, ArgPack& args)
     {
-        manager->PostProcess_vkCreateImage(result, args...);
+        // Note: Could use std::apply with an ArgPack tuplizer, or conver the PostProcess_ calls to ArgPack
+        manager->PostProcess_vkCreateImage(args.result, args.device, args.pCreateInfo, args.pAllocator, args.pImage);
     }
 };
 
