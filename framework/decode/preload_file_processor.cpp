@@ -136,7 +136,7 @@ bool PreloadFileProcessor::AddBlockBuffer(const format::BlockHeader& header)
 
 bool PreloadFileProcessor::BlockBuffer::ReadBytes(void* buffer, size_t buffer_size)
 {
-    bool success = ReadBytes(buffer, buffer_size, read_pos_);
+    bool success = ReadBytesAt(buffer, buffer_size, read_pos_);
     if (success)
     {
         read_pos_ += buffer_size;
@@ -144,7 +144,7 @@ bool PreloadFileProcessor::BlockBuffer::ReadBytes(void* buffer, size_t buffer_si
     return success;
 }
 
-bool PreloadFileProcessor::BlockBuffer::ReadBytes(void* buffer, size_t buffer_size, size_t at) const
+bool PreloadFileProcessor::BlockBuffer::ReadBytesAt(void* buffer, size_t buffer_size, size_t at) const
 {
     if (IsAvailableAt(buffer_size, at))
     {
@@ -166,7 +166,7 @@ bool PreloadFileProcessor::BlockBuffer::IsFrameDelimiter(const FileProcessor& fi
     {
         case format::BlockType::kFrameMarkerBlock:
             format::MarkerType marker_type;
-            if (Read<format::MarkerType>(marker_type, sizeof(format::BlockHeader)))
+            if (ReadAt<format::MarkerType>(marker_type, sizeof(format::BlockHeader)))
             {
                 return file_processor.IsFrameDelimiter(base_type, marker_type);
             }
@@ -174,7 +174,7 @@ bool PreloadFileProcessor::BlockBuffer::IsFrameDelimiter(const FileProcessor& fi
         case format::BlockType::kFunctionCallBlock:
         case format::BlockType::kMethodCallBlock:
             format::ApiCallId call_id;
-            if (Read<format::ApiCallId>(call_id, sizeof(format::BlockHeader)))
+            if (ReadAt<format::ApiCallId>(call_id, sizeof(format::BlockHeader)))
             {
                 return file_processor.IsFrameDelimiter(call_id);
             }

@@ -56,7 +56,7 @@ class PreloadFileProcessor : public FileProcessor
         template <typename T>
         bool Read(T& value)
         {
-            bool success = Read<T>(value, read_pos_);
+            bool success = ReadAt<T>(value, read_pos_);
             if (success)
             {
                 read_pos_ += sizeof(T);
@@ -65,7 +65,7 @@ class PreloadFileProcessor : public FileProcessor
         }
 
         template <typename T>
-        bool Read(T& value, size_t at) const
+        bool ReadAt(T& value, size_t at) const
         {
             // Ensure that this isn't being misused.
             static_assert(std::is_trivially_copyable_v<T>, "Read<T> requires a trivially copyable type");
@@ -78,8 +78,7 @@ class PreloadFileProcessor : public FileProcessor
         }
 
         bool ReadBytes(void* buffer, size_t buffer_size);
-
-        bool ReadBytes(void* buffer, size_t buffer_size, size_t at) const;
+        bool ReadBytesAt(void* buffer, size_t buffer_size, size_t at) const;
 
         size_t Size() const { return size_; }
 

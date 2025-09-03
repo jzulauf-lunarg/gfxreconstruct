@@ -46,7 +46,15 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
 
+// WIP WIP WIP Enable memory mapped file support on Windows platforms.
+// TODO: Test and enable on POSIX platforms.
+#ifdef WIN32
+// Currently, memory mapped file support is only tested Windows platforms.
+// A POSIX implementation has been sketched, but not even compile tested.
+using FileInputStream = util::MappedFileInputStream;
+#else
 using FileInputStream = util::FStreamFileInputStream;
+#endif
 
 class FileProcessor
 {
@@ -142,6 +150,8 @@ class FileProcessor
 
     bool ReadBlockHeader(format::BlockHeader* block_header);
 
+    // NOTE: WIP WIP No "preload" overload of this... (do we want one, or still need preload?)
+    virtual util::MappedSpan ReadSpan(size_t buffer_size);
     virtual bool ReadBytes(void* buffer, size_t buffer_size);
 
     virtual bool SkipBytes(size_t skip_size);
@@ -227,8 +237,9 @@ class FileProcessor
 
             explicit operator bool() const { return IsOpen(); }
 
-            bool FileSeek(int64_t offset, util::platform::FileSeekOrigin origin);
-            bool ReadBytes(void* buffer, size_t bytes);
+            bool             FileSeek(int64_t offset, util::platform::FileSeekOrigin origin);
+            util::MappedSpan ReadSpan(size_t bytes);
+            bool             ReadBytes(void* buffer, size_t bytes);
 
           private:
             ActiveFiles& active_file;
