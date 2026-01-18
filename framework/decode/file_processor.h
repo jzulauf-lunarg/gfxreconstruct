@@ -102,6 +102,9 @@ class FileProcessor
     };
 
   public:
+    // TODO GH #1195: frame numbering should be 1-based.
+    const static uint32_t kFirstFrame = 0;
+
     FileProcessor();
 
     FileProcessor(uint64_t block_limit);
@@ -173,18 +176,15 @@ class FileProcessor
 
   protected:
     bool DoProcessNextFrame(const std::function<bool()>& block_processor);
-    bool ProcessBlocksOneFrame();
+    virtual bool ProcessBlocksOneFrame();
 
-    bool ContinueDecoding();
+    bool ContinueDecoding(uint64_t block_index, bool check_decoders);
 
     util::DataSpan ReadSpan(size_t buffer_size);
     bool           ReadBytes(void* buffer, size_t buffer_size);
 
     // Reads block header, from input stream.
     bool ReadBlockBuffer(BlockParser& parser, BlockBuffer& buffer);
-
-    // Gets the block buffer from input stream or preloaded data if available
-    virtual bool GetBlockBuffer(BlockParser& parser, BlockBuffer& block_buffer);
 
     void UpdateEndFrameState();
 
@@ -194,7 +194,19 @@ class FileProcessor
 
     void PrintBlockInfo() const;
 
-    bool HandleBlockEof(const char* operation, bool report_frame_and_block);
+    enum class ProcessBlockState : int32_t
+    {
+        // Negative values indicate terminal states. Do not call ProcessBlocks again after receiving these.
+        //
+        // Returned when ProcessBlocks ...
+        kFrameBoundary = 1,  // encountered a frame boundary
+        kRunning       = 0,  // never. Internal state: continue looping in ProcessBlocks
+        kEndProcessing = -1, // completed processing (!ContinueDecoding or clean EOF)
+        kError         = -2, // encountered an error
+    };
+    static inline bool ContinueProcessing(ProcessBlockState state) { return static_cast<int32_t>(state) >= 0; }
+
+    ProcessBlockState HandleBlockEof(const char* operation, bool report_frame_and_block);
 
   protected:
     uint64_t                 current_frame_number_;
@@ -236,13 +248,20 @@ class FileProcessor
         return file_stack_.back().active_file->IsEof();
     }
 
+    // Dispatch function is allowed to modify the ParsedBlock as needed before processing
+    // including decompression, or even stealing the contents for deferred processing.
+    using DispatchFunction = std::function<ProcessBlockState(uint64_t, ParsedBlock&)>;
+    ProcessBlockState ProcessBlocks(DispatchFunction& dispatch, bool check_decoder_completeness);
+
+    void SetDecoderBlockIndex(uint64_t block_index);
+    void SetDecoderFrameNumber(uint64_t frame_number);
+
     BlockParser& GetBlockParser()
     {
         GFXRECON_ASSERT(block_parser_.get() != nullptr);
         return *block_parser_;
     }
 
-  private:
     class DispatchVisitor
     {
       public:
@@ -290,6 +309,7 @@ class FileProcessor
         AnnotationHandler*              annotation_handler_;
     };
 
+  private:
     class ProcessVisitor
     {
       public:
@@ -352,9 +372,7 @@ class FileProcessor
         template <typename Args>
         void operator()(const Args&)
         {
-            // The default behavior for a Visit is a successful, non-frame-delimiter
-            is_frame_delimiter = false;
-            success            = true;
+            Reset();
         }
 
         // Avoid unpacking the Arg from it's store in the Arg specific overloads
@@ -367,6 +385,11 @@ class FileProcessor
         bool IsSuccess() const { return success; }
         bool IsFrameDelimiter() const { return is_frame_delimiter; }
         ProcessVisitor(FileProcessor& file_processor) : file_processor_(file_processor) {}
+        void Reset()
+        {
+            is_frame_delimiter = false;
+            success            = true;
+        }
 
       private:
         bool           is_frame_delimiter = false;
@@ -375,7 +398,6 @@ class FileProcessor
     };
 
     bool ProcessFileHeader();
-    bool ProcessBlocks();
 
     // NOTE: These two can't be const as derived class updates state.
     virtual bool SkipBlockProcessing() { return false; } // No block skipping in base class
@@ -404,8 +426,6 @@ class FileProcessor
                        bool                           execute_till_eof);
 
     void DecrementRemainingCommands();
-
-    std::string ApplyAbsolutePath(const std::string& file);
 
   private:
     std::vector<format::FileOptionPair> file_options_;
