@@ -114,7 +114,7 @@ bool FileProcessor::ProcessBlocksOneFrame()
     return ContinueProcessing(process_result);
 }
 
-bool FileProcessor::DoProcessNextFrame(const std::function<bool()>& block_processor)
+bool FileProcessor::DoProcessNextFrame(const BlockProcessor& block_processor)
 {
     bool success = IsFileValid();
 

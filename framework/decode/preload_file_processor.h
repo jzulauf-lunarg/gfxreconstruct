@@ -42,13 +42,11 @@ class PreloadFileProcessor : public FileProcessor
     void PreloadNextFrames(size_t count);
 
   protected:
-    bool PreloadBlocksOneFrame();
     bool ProcessBlocksOneFrame() override;
 
   private:
     // Read and parse all blocks for one frame
     using ParsedBlockQueue = std::deque<ParsedBlock>;
-    ParsedBlockQueue pending_parsed_blocks_;
     struct PreloadedFrame
     {
         uint64_t         frame_number;
@@ -58,16 +56,17 @@ class PreloadFileProcessor : public FileProcessor
         PreloadedFrame(PreloadedFrame&&) noexcept        = default;
         PreloadedFrame(const PreloadedFrame&)            = delete;
         PreloadedFrame& operator=(const PreloadedFrame&) = delete;
-        PreloadedFrame(uint64_t frame_number_, ParsedBlockQueue&& blocks_) :
-            frame_number(frame_number_), blocks(std::move(blocks_))
-        {}
+        PreloadedFrame(uint64_t frame_number_) : frame_number(frame_number_), blocks() {}
     };
+    using PreloadedFramePtr = std::unique_ptr<PreloadedFrame>;
+    using PreloadedFrames   = std::vector<PreloadedFramePtr>;
+    using PreloadedFramesIt = PreloadedFrames::iterator;
 
+    bool              PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue);
     ProcessBlockState ReplayOneFrame(PreloadedFrame& frame);
-    void              CleanupReplay();
 
-    std::deque<PreloadedFrame>  preload_frames_;
-    std::vector<PreloadedFrame> replayed_preload_frames_;
+    PreloadedFrames   preloaded_frames_;
+    PreloadedFramesIt current_preloaded_frame_;
 };
 
 GFXRECON_END_NAMESPACE(decode)

@@ -24,6 +24,8 @@
 #include "decode/preload_file_processor.h"
 #include "util/logging.h"
 
+#include <memory>
+
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(decode)
 
@@ -34,7 +36,6 @@ void PreloadFileProcessor::PreloadNextFrames(size_t count)
     // Block processing will update current_frame_number_, so save and restore it,
     // as callers rely on it remaining unchanged by preload.
     const uint64_t save_current_frame = current_frame_number_;
-    uint64_t       preload_frame      = save_current_frame;
     bool           success            = true;
 
     // Escalate block reference policy to owned to retain backing store for preloaded blocks
@@ -45,48 +46,52 @@ void PreloadFileProcessor::PreloadNextFrames(size_t count)
         block_parser_->SetBlockReferencePolicy(ParsedBlock::BlockReferencePolicy::kOwnedReferenceAsNeeded);
     }
 
-    while (--count != 0U && success)
+    preloaded_frames_.clear();
+    preloaded_frames_.reserve(count);
+
+    while (count != 0U && success)
     {
-        uint64_t preload_frame = current_frame_number_;
-        success                = DoProcessNextFrame([this]() { return this->PreloadBlocksOneFrame(); });
+        uint64_t          current_preload_frame = current_frame_number_;
+        PreloadedFramePtr preload_frame         = std::make_unique<PreloadedFrame>(current_preload_frame);
+        success =
+            DoProcessNextFrame([this, &preload_frame]() { return this->PreloadBlocksOneFrame(preload_frame->blocks); });
         if (success)
         {
-            if (current_frame_number_ == preload_frame)
+            if (current_frame_number_ == current_preload_frame)
             {
                 // Deal with the frame marker after implied frame kFunctionCallBlock frame boundary case
                 // Append the blocks leading up to the frame marker to the previous frame
                 GFXRECON_ASSERT(current_frame_number_ == (kFirstFrame + 1));
-                GFXRECON_ASSERT(!preload_frames_.empty());
-                auto& prev_frame = preload_frames_.back().blocks;
-                prev_frame.insert(prev_frame.end(),
-                                  std::make_move_iterator(pending_parsed_blocks_.begin()),
-                                  std::make_move_iterator(pending_parsed_blocks_.end()));
+                GFXRECON_ASSERT(!preload_frame->blocks.empty());
+                ParsedBlockQueue& current_blocks = preload_frame->blocks;
+                ParsedBlockQueue& prev_blocks    = preloaded_frames_.back()->blocks;
+                prev_blocks.insert(prev_blocks.end(),
+                                   std::make_move_iterator(current_blocks.begin()),
+                                   std::make_move_iterator(current_blocks.end()));
+                preload_frame.reset();
             }
             else
             {
-                preload_frames_.emplace_back(preload_frame, std::move(pending_parsed_blocks_));
-                preload_frame++;
+                preloaded_frames_.emplace_back(std::move(preload_frame));
+                count--;
             }
         }
     }
+    current_preloaded_frame_ = preloaded_frames_.begin();
 
     // Restore the original block reference policy
     block_parser_->SetBlockReferencePolicy(save_policy);
-
-    // Set up the garbage frames for cleanup after replay
-    replayed_preload_frames_.clear();
-    replayed_preload_frames_.reserve(preload_frames_.size());
 
     // Restore saved frame number callers expect it to be unchanged by preload
     current_frame_number_ = save_current_frame;
 }
 
-bool PreloadFileProcessor::PreloadBlocksOneFrame()
+bool PreloadFileProcessor::PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue)
 {
     // Use queue-optimized to set early decompression for "small" parsed blocks
     block_parser_->SetDecompressionPolicy(BlockParser::DecompressionPolicy::kQueueOptimized);
-    DispatchFunction dispatch = [this](uint64_t block_index, ParsedBlock& block) {
-        pending_parsed_blocks_.emplace_back(std::move(block));
+    DispatchFunction dispatch = [&frame_queue](uint64_t block_index, ParsedBlock& block) {
+        frame_queue.emplace_back(std::move(block));
         return ProcessBlockState::kRunning;
     };
 
@@ -94,28 +99,23 @@ bool PreloadFileProcessor::PreloadBlocksOneFrame()
     return ContinueProcessing(process_result);
 }
 
-void PreloadFileProcessor::CleanupReplay()
-{
-    // Clear out preloaded frames that have been replayed
-    replayed_preload_frames_.clear();
-    replayed_preload_frames_.shrink_to_fit();
-}
-
 bool PreloadFileProcessor::ProcessBlocksOneFrame()
 {
     // Passthrough if no preloaded frame.
-    if (preload_frames_.empty())
+    if (!preloaded_frames_.empty() && current_preloaded_frame_ == preloaded_frames_.end())
     {
-        CleanupReplay();
+        preloaded_frames_.clear();
+        current_preloaded_frame_ = preloaded_frames_.end();
+    }
+
+    if (preloaded_frames_.empty())
+    {
         return FileProcessor::ProcessBlocksOneFrame();
     }
 
-    PreloadedFrame&   frame          = preload_frames_.front();
+    PreloadedFrame&   frame          = *(current_preloaded_frame_->get());
     ProcessBlockState process_result = ReplayOneFrame(frame);
-
-    // Defer cleanup of preloaded frames to avoid contaminating performance measurements during replay
-    replayed_preload_frames_.emplace_back(std::move(frame));
-    preload_frames_.pop_front();
+    ++current_preloaded_frame_;
 
     if (process_result == ProcessBlockState::kFrameBoundary)
     {

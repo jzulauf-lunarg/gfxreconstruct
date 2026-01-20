@@ -175,7 +175,9 @@ class FileProcessor
     void ProcessAnnotation(const AnnotationArgs& annotation);
 
   protected:
-    bool DoProcessNextFrame(const std::function<bool()>& block_processor);
+    using BlockProcessor = std::function<bool()>;
+
+    bool         DoProcessNextFrame(const BlockProcessor& block_processor);
     virtual bool ProcessBlocksOneFrame();
 
     bool ContinueDecoding(uint64_t block_index, bool check_decoders);
