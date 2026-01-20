@@ -46,7 +46,8 @@ class PreloadFileProcessor : public FileProcessor
 
   private:
     // Read and parse all blocks for one frame
-    using ParsedBlockQueue = std::deque<ParsedBlock>;
+    using ParsedBlockPtr   = std::unique_ptr<ParsedBlock>;
+    using ParsedBlockQueue = std::deque<ParsedBlockPtr>;
     struct PreloadedFrame
     {
         uint64_t         frame_number;
