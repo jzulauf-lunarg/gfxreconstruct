@@ -52,9 +52,8 @@ void PreloadFileProcessor::PreloadNextFrames(size_t count)
     while (count != 0U && success)
     {
         uint64_t          current_preload_frame = current_frame_number_;
-        PreloadedFramePtr preload_frame         = std::make_unique<PreloadedFrame>(current_preload_frame);
-        success =
-            DoProcessNextFrame([this, &preload_frame]() { return this->PreloadBlocksOneFrame(preload_frame->blocks); });
+        ParsedBlockQueue  frame_blocks;
+        success = DoProcessNextFrame([this, &frame_blocks]() { return this->PreloadBlocksOneFrame(frame_blocks); });
         if (success)
         {
             if (current_frame_number_ == current_preload_frame)
@@ -62,17 +61,21 @@ void PreloadFileProcessor::PreloadNextFrames(size_t count)
                 // Deal with the frame marker after implied frame kFunctionCallBlock frame boundary case
                 // Append the blocks leading up to the frame marker to the previous frame
                 GFXRECON_ASSERT(current_frame_number_ == (kFirstFrame + 1));
-                GFXRECON_ASSERT(!preload_frame->blocks.empty());
-                ParsedBlockQueue& current_blocks = preload_frame->blocks;
-                ParsedBlockQueue& prev_blocks    = preloaded_frames_.back()->blocks;
+                GFXRECON_ASSERT(!frame_blocks.empty());
+                ParsedBlockReplay& prev_blocks = preloaded_frames_.back()->blocks;
                 prev_blocks.insert(prev_blocks.end(),
-                                   std::make_move_iterator(current_blocks.begin()),
-                                   std::make_move_iterator(current_blocks.end()));
-                preload_frame.reset();
+                                   std::make_move_iterator(frame_blocks.begin()),
+                                   std::make_move_iterator(frame_blocks.end()));
             }
             else
             {
-                preloaded_frames_.emplace_back(std::move(preload_frame));
+
+                preloaded_frames_.emplace_back(std::make_unique<PreloadedFrame>(current_preload_frame));
+                auto& preload_blocks = preloaded_frames_.back()->blocks;
+                preload_blocks.reserve(frame_blocks.size());
+                preloaded_frames_.back()->blocks.insert(preload_blocks.end(),
+                                                        std::make_move_iterator(frame_blocks.begin()),
+                                                        std::make_move_iterator(frame_blocks.end()));
                 count--;
             }
         }
