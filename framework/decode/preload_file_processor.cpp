@@ -94,7 +94,7 @@ bool PreloadFileProcessor::PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue)
     // Use queue-optimized to set early decompression for "small" parsed blocks
     block_parser_->SetDecompressionPolicy(BlockParser::DecompressionPolicy::kQueueOptimized);
     DispatchFunction dispatch = [&frame_queue](uint64_t block_index, ParsedBlock& block) {
-        frame_queue.emplace_back(std::make_unique<ParsedBlock>(std::move(block)));
+        frame_queue.emplace_back(std::move(block));
         return ProcessBlockState::kRunning;
     };
 
@@ -135,9 +135,8 @@ FileProcessor::ProcessBlockState PreloadFileProcessor::ReplayOneFrame(PreloadedF
     SetDecoderFrameNumber(frame.frame_number);
 
     ProcessBlockState process_state = ProcessBlockState::kFrameBoundary;
-    for (auto& queued_block_ptr : frame.blocks)
+    for (auto& queued_block : frame.blocks)
     {
-        auto&    queued_block = *queued_block_ptr;
         uint64_t block_index = queued_block.GetBlockIndex();
         if (!ContinueDecoding(block_index, true /* check decoder completion */))
         {
