@@ -38,11 +38,11 @@ class PreloadFileProcessor : public FileProcessor
     using Base = FileProcessor;
     PreloadFileProcessor();
 
+    // Returns true if there are more frames to process, false if all frames have been processed or an error has occured
+    bool ProcessNextFrame() override;
+
     // Preloads *count* frames to continuous, expandable memory buffer
     void PreloadNextFrames(size_t count);
-
-  protected:
-    bool ProcessBlocksOneFrame() override;
 
   private:
     // Read and parse all blocks for one frame
@@ -59,16 +59,26 @@ class PreloadFileProcessor : public FileProcessor
         PreloadedFrame(const PreloadedFrame&)            = delete;
         PreloadedFrame& operator=(const PreloadedFrame&) = delete;
         PreloadedFrame(uint64_t frame_number_) : frame_number(frame_number_), blocks() {}
+
+        // Blocks must be iteratable container of ParsedBlock, with a size() method
+        template <typename Blocks>
+        void AppendMovedBlocks(Blocks& from_blocks)
+        {
+            blocks.reserve(blocks.size() + from_blocks.size());
+            blocks.insert(
+                blocks.end(), std::make_move_iterator(from_blocks.begin()), std::make_move_iterator(from_blocks.end()));
+        }
     };
     using PreloadedFramePtr = std::unique_ptr<PreloadedFrame>;
     using PreloadedFrames   = std::vector<PreloadedFramePtr>;
     using PreloadedFramesIt = PreloadedFrames::iterator;
 
-    bool              PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue);
+    ProcessBlockState PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue);
     ProcessBlockState ReplayOneFrame(PreloadedFrame& frame);
 
     PreloadedFrames   preloaded_frames_;
     PreloadedFramesIt current_preloaded_frame_;
+    bool              process_if_not_preload_{ true }; //
 };
 
 GFXRECON_END_NAMESPACE(decode)

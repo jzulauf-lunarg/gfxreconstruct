@@ -126,7 +126,7 @@ class FileProcessor
 
     // Returns true if there are more frames to process, false if all frames have been processed or an error has
     // occurred.  Use GetErrorState() to determine error condition.
-    bool ProcessNextFrame();
+    virtual bool ProcessNextFrame();
 
     // Returns false if processing failed.  Use GetErrorState() to determine error condition for failure case.
     bool ProcessAllFrames();
@@ -177,9 +177,6 @@ class FileProcessor
   protected:
     using BlockProcessor = std::function<bool()>;
 
-    bool         DoProcessNextFrame(const BlockProcessor& block_processor);
-    virtual bool ProcessBlocksOneFrame();
-
     bool ContinueDecoding(uint64_t block_index, bool check_decoders);
 
     util::DataSpan ReadSpan(size_t buffer_size);
@@ -221,6 +218,7 @@ class FileProcessor
     uint64_t block_index_;
 
   protected:
+    bool         IsFileValid() const;
     BlockIOError CheckFileStatus() const
     {
         if (file_stack_.empty())
@@ -403,18 +401,6 @@ class FileProcessor
 
     // NOTE: These two can't be const as derived class updates state.
     virtual bool SkipBlockProcessing() { return false; } // No block skipping in base class
-
-    bool IsFileValid() const
-    {
-        if (!file_stack_.empty())
-        {
-            return file_stack_.back().active_file->IsReady();
-        }
-        else
-        {
-            return false;
-        }
-    }
 
     bool SeekActiveFile(const FileInputStreamPtr& file, int64_t offset, util::platform::FileSeekOrigin origin);
 

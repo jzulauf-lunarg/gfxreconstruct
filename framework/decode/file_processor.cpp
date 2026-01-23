@@ -93,12 +93,12 @@ bool FileProcessor::Initialize(const std::string& filename)
 
 bool FileProcessor::ProcessNextFrame()
 {
-    auto block_processor = [this]() { return this->ProcessBlocksOneFrame(); };
-    return DoProcessNextFrame(block_processor);
-}
+    if (!IsFileValid())
+    {
+        error_state_ = CheckFileStatus();
+        return false;
+    }
 
-bool FileProcessor::ProcessBlocksOneFrame()
-{
     DispatchVisitor dispatch_visitor(decoders_, annotation_handler_);
     // No need to decompress within the dispatch function, given kAlways policy.
     block_parser_->SetDecompressionPolicy(BlockParser::DecompressionPolicy::kAlways);
@@ -112,23 +112,6 @@ bool FileProcessor::ProcessBlocksOneFrame()
     ProcessBlockState process_result = ProcessBlocks(dispatch, true /* check decoder completion */);
 
     return ContinueProcessing(process_result);
-}
-
-bool FileProcessor::DoProcessNextFrame(const BlockProcessor& block_processor)
-{
-    bool success = IsFileValid();
-
-    if (success)
-    {
-
-        success = block_processor();
-    }
-    else
-    {
-        error_state_ = CheckFileStatus();
-    }
-
-    return success;
 }
 
 bool FileProcessor::ProcessAllFrames()
@@ -418,6 +401,18 @@ util::DataSpan FileProcessor::ReadSpan(size_t bytes)
         bytes_read_ += bytes;
     }
     return read_span;
+}
+
+bool FileProcessor::IsFileValid() const
+{
+    if (!file_stack_.empty())
+    {
+        return file_stack_.back().active_file->IsReady();
+    }
+    else
+    {
+        return false;
+    }
 }
 
 bool FileProcessor::SeekActiveFile(const FileInputStreamPtr&      active_file,

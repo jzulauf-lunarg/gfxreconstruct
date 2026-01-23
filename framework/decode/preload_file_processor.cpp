@@ -33,87 +33,127 @@ PreloadFileProcessor::PreloadFileProcessor() {}
 
 void PreloadFileProcessor::PreloadNextFrames(size_t count)
 {
+    if (!IsFileValid())
+    {
+        error_state_ = CheckFileStatus();
+        return;
+    }
+
     // Block processing will update current_frame_number_, so save and restore it,
     // as callers rely on it remaining unchanged by preload.
     const uint64_t save_current_frame = current_frame_number_;
     bool           success            = true;
 
     // Escalate block reference policy to owned to retain backing store for preloaded blocks
-    auto save_policy = block_parser_->GetBlockReferencePolicy();
-    if (save_policy == ParsedBlock::BlockReferencePolicy::kNonOwnedReference)
+    auto save_reference_policy = block_parser_->GetBlockReferencePolicy();
+    if (save_reference_policy == ParsedBlock::BlockReferencePolicy::kNonOwnedReference)
     {
         // Only need to change if was non-owned
         block_parser_->SetBlockReferencePolicy(ParsedBlock::BlockReferencePolicy::kOwnedReferenceAsNeeded);
     }
 
+    // Use queue-optimized to set early decompression for "small" parsed blocks
+    auto save_decompression_policy = block_parser_->GetDecompressionPolicy();
+    block_parser_->SetDecompressionPolicy(BlockParser::DecompressionPolicy::kQueueOptimized);
+
     preloaded_frames_.clear();
     preloaded_frames_.reserve(count);
 
-    while (count != 0U && success)
+    ProcessBlockState preload_result = ProcessBlockState::kFrameBoundary;
+    while ((count != 0U) && (preload_result == ProcessBlockState::kFrameBoundary))
     {
         uint64_t          current_preload_frame = current_frame_number_;
         ParsedBlockQueue  frame_blocks;
-        success = DoProcessNextFrame([this, &frame_blocks]() { return this->PreloadBlocksOneFrame(frame_blocks); });
-        if (success)
+        preload_result = PreloadBlocksOneFrame(frame_blocks);
+
+        if (preload_result != ProcessBlockState::kError)
         {
-            if (current_frame_number_ == current_preload_frame)
+            // This is for the corner case where we are seeing an explicit frame boundary, for a file
+            // that assumes implicit frame boundaries on specific function call blocks.
+            // A WARNING is logged during block processing when this occurs.
+
+            // We have two strategies to deal with this case:
+            const bool frame_stutter = (preload_result == ProcessBlockState::kFrameBoundary) &&
+                                       (current_frame_number_ == current_preload_frame);
+            if (frame_stutter)
             {
                 // Deal with the frame marker after implied frame kFunctionCallBlock frame boundary case
-                // Append the blocks leading up to the frame marker to the previous frame
                 GFXRECON_ASSERT(current_frame_number_ == (kFirstFrame + 1));
-                GFXRECON_ASSERT(!frame_blocks.empty());
-                ParsedBlockReplay& prev_blocks = preloaded_frames_.back()->blocks;
-                prev_blocks.insert(prev_blocks.end(),
-                                   std::make_move_iterator(frame_blocks.begin()),
-                                   std::make_move_iterator(frame_blocks.end()));
+                if (preloaded_frames_.empty())
+                {
+                    // This is really part of the non-preloaed previous (first) frame,
+                    // so immediately replay it to complete that frame
+                    PreloadedFrame temp_frame(kFirstFrame);
+                    temp_frame.AppendMovedBlocks(frame_blocks);
+                    ProcessBlockState replay_result = ReplayOneFrame(temp_frame);
+                    GFXRECON_ASSERT(replay_result == ProcessBlockState::kFrameBoundary);
+                }
+                else
+                {
+                    // Append the blocks leading up to the frame marker to the previous frame
+                    // completing that frame with the stuttered frame marker
+                    GFXRECON_ASSERT(!frame_blocks.empty());
+                    preloaded_frames_.back()->AppendMovedBlocks(frame_blocks);
+                }
             }
             else
             {
-
+                // Normal case, just add the preloaded frame
                 preloaded_frames_.emplace_back(std::make_unique<PreloadedFrame>(current_preload_frame));
-                auto& preload_blocks = preloaded_frames_.back()->blocks;
-                preload_blocks.reserve(frame_blocks.size());
-                preloaded_frames_.back()->blocks.insert(preload_blocks.end(),
-                                                        std::make_move_iterator(frame_blocks.begin()),
-                                                        std::make_move_iterator(frame_blocks.end()));
+                preloaded_frames_.back()->AppendMovedBlocks(frame_blocks);
                 count--;
             }
         }
     }
+
+    // Need to remember whether we got to the end of processing during preload
+    // Currently only used to decide whether to continue past preloaded frames based on processing result,
+    // so we don't have to OR with the extant value
+    process_if_not_preload_ = ContinueProcessing(preload_result);
+
+    if (count)
+    {
+        const uint64_t found = preloaded_frames_.size();
+        const uint64_t total = count + found;
+        GFXRECON_LOG_INFO("Preload did not load all measurement frames. %" PRIu64 " frames found, %" PRIu64 " expected",
+                          found,
+                          total);
+    }
+
     current_preloaded_frame_ = preloaded_frames_.begin();
 
-    // Restore the original block reference policy
-    block_parser_->SetBlockReferencePolicy(save_policy);
+    // Restore the original parser policies
+    block_parser_->SetBlockReferencePolicy(save_reference_policy);
+    block_parser_->SetDecompressionPolicy(save_decompression_policy);
 
     // Restore saved frame number callers expect it to be unchanged by preload
     current_frame_number_ = save_current_frame;
 }
 
-bool PreloadFileProcessor::PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue)
+FileProcessor::ProcessBlockState PreloadFileProcessor::PreloadBlocksOneFrame(ParsedBlockQueue& frame_queue)
 {
-    // Use queue-optimized to set early decompression for "small" parsed blocks
-    block_parser_->SetDecompressionPolicy(BlockParser::DecompressionPolicy::kQueueOptimized);
     DispatchFunction dispatch = [&frame_queue](uint64_t block_index, ParsedBlock& block) {
         frame_queue.emplace_back(std::move(block));
         return ProcessBlockState::kRunning;
     };
 
-    ProcessBlockState process_result = ProcessBlocks(dispatch, false /* check decoder completion */);
-    return ContinueProcessing(process_result);
+    return ProcessBlocks(dispatch, false /* check decoder completion */);
 }
 
-bool PreloadFileProcessor::ProcessBlocksOneFrame()
+bool PreloadFileProcessor::ProcessNextFrame()
 {
-    // Passthrough if no preloaded frame.
+    // Clean up preloaded frames if we're at the end of the preloaded frames.  It's done here
+    // so that the clean up time is not measured in the measurement-frame-range timing.
     if (!preloaded_frames_.empty() && current_preloaded_frame_ == preloaded_frames_.end())
     {
         preloaded_frames_.clear();
         current_preloaded_frame_ = preloaded_frames_.end();
     }
 
+    // Passthrough if no preloaded frames.
     if (preloaded_frames_.empty())
     {
-        return FileProcessor::ProcessBlocksOneFrame();
+        return FileProcessor::ProcessNextFrame();
     }
 
     PreloadedFrame&   frame          = *(current_preloaded_frame_->get());
@@ -125,7 +165,11 @@ bool PreloadFileProcessor::ProcessBlocksOneFrame()
         current_frame_number_++;
     }
 
-    return ContinueProcessing(process_result);
+    // Either we aren't at the end of preloaded frames, or we are allowed to continue past the end.
+    // Short cirucuit to avoid evaluating iteration operator != or ContinueProcessing() if not needed.
+    // This makes sure we don't try to FileProcessor::ProcessNextFrame past EOF and incorrectly produce an error
+    const bool continue_past_end = process_if_not_preload_ || (current_preloaded_frame_ != preloaded_frames_.end());
+    return continue_past_end && ContinueProcessing(process_result);
 }
 
 FileProcessor::ProcessBlockState PreloadFileProcessor::ReplayOneFrame(PreloadedFrame& frame)
