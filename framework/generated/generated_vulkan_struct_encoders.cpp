@@ -1427,15 +1427,6 @@ void EncodeStruct(ParameterEncoder* encoder, const VkBufferViewCreateInfo& value
     encoder->EncodeUInt64Value(value.range);
 }
 
-void EncodeStruct(ParameterEncoder* encoder, const VkShaderModuleCreateInfo& value)
-{
-    encoder->EncodeEnumValue(value.sType);
-    EncodePNextStruct(encoder, value.pNext);
-    encoder->EncodeFlagsValue(value.flags);
-    encoder->EncodeSizeTValue(value.codeSize);
-    encoder->EncodeUInt32Array(value.pCode, value.codeSize / 4);
-}
-
 void EncodeStruct(ParameterEncoder* encoder, const VkSpecializationMapEntry& value)
 {
     encoder->EncodeUInt32Value(value.constantID);
@@ -1685,19 +1676,6 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPipelineInputAssemblyStateC
     encoder->EncodeFlagsValue(value.flags);
     encoder->EncodeEnumValue(value.topology);
     encoder->EncodeUInt32Value(value.primitiveRestartEnable);
-}
-
-void EncodeStruct(ParameterEncoder* encoder, const VkPipelineMultisampleStateCreateInfo& value)
-{
-    encoder->EncodeEnumValue(value.sType);
-    EncodePNextStruct(encoder, value.pNext);
-    encoder->EncodeFlagsValue(value.flags);
-    encoder->EncodeEnumValue(value.rasterizationSamples);
-    encoder->EncodeUInt32Value(value.sampleShadingEnable);
-    encoder->EncodeFloatValue(value.minSampleShading);
-    encoder->EncodeUInt32Array(value.pSampleMask, (value.rasterizationSamples + 31) / 32);
-    encoder->EncodeUInt32Value(value.alphaToCoverageEnable);
-    encoder->EncodeUInt32Value(value.alphaToOneEnable);
 }
 
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineRasterizationStateCreateInfo& value)
@@ -9524,13 +9502,6 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceOpacityMicrom
     encoder->EncodeUInt32Value(value.maxOpacity4StateSubdivisionLevel);
 }
 
-void EncodeStruct(ParameterEncoder* encoder, const VkMicromapVersionInfoEXT& value)
-{
-    encoder->EncodeEnumValue(value.sType);
-    EncodePNextStructIfValid(encoder, value.pNext);
-    encoder->EncodeUInt8Array(value.pVersionData, 2*VK_UUID_SIZE);
-}
-
 void EncodeStruct(ParameterEncoder* encoder, const VkCopyMicromapToMemoryInfoEXT& value)
 {
     encoder->EncodeEnumValue(value.sType);
@@ -12304,12 +12275,15 @@ template void EncodeStruct<VkImportMemoryWin32HandleInfoKHR>(ParameterEncoder*, 
 template void EncodeStruct<VkImportMemoryWin32HandleInfoNV>(ParameterEncoder*, const VkImportMemoryWin32HandleInfoNV&);
 template void EncodeStruct<VkInstanceCreateInfo>(ParameterEncoder*, const VkInstanceCreateInfo&);
 template void EncodeStruct<VkMappedMemoryRange>(ParameterEncoder*, const VkMappedMemoryRange&);
+template void EncodeStruct<VkMicromapVersionInfoEXT>(ParameterEncoder*, const VkMicromapVersionInfoEXT&);
 template void EncodeStruct<VkPhysicalDeviceGroupProperties>(ParameterEncoder*, const VkPhysicalDeviceGroupProperties&);
 template void EncodeStruct<VkPhysicalDeviceMemoryProperties>(ParameterEncoder*, const VkPhysicalDeviceMemoryProperties&);
 template void EncodeStruct<VkPipelineCacheCreateInfo>(ParameterEncoder*, const VkPipelineCacheCreateInfo&);
 template void EncodeStruct<VkPipelineCacheHeaderVersionOne>(ParameterEncoder*, const VkPipelineCacheHeaderVersionOne&);
 template void EncodeStruct<VkPipelineCreateInfoKHR>(ParameterEncoder*, const VkPipelineCreateInfoKHR&);
+template void EncodeStruct<VkPipelineMultisampleStateCreateInfo>(ParameterEncoder*, const VkPipelineMultisampleStateCreateInfo&);
 template void EncodeStruct<VkRenderingInfo>(ParameterEncoder*, const VkRenderingInfo&);
+template void EncodeStruct<VkShaderModuleCreateInfo>(ParameterEncoder*, const VkShaderModuleCreateInfo&);
 template void EncodeStruct<VkSubmitInfo>(ParameterEncoder*, const VkSubmitInfo&);
 template void EncodeStruct<VkSubpassEndInfo>(ParameterEncoder*, const VkSubpassEndInfo&);
 template void EncodeStruct<VkSurfaceFullScreenExclusiveWin32InfoEXT>(ParameterEncoder*, const VkSurfaceFullScreenExclusiveWin32InfoEXT&);

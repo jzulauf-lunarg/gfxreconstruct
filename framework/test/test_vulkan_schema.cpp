@@ -1837,6 +1837,178 @@ TEST_CASE("Schema EncodeStruct matches pointer-array wire bytes", "[schema][enco
     }));
 }
 
+TEST_CASE("Schema EncodeStruct matches computed-count wire bytes", "[schema][encode]")
+{
+    // Three migrated structures whose run length is registry arithmetic rather than one sibling, one per operator:
+    // a size_t sibling over a constant (VkShaderModuleCreateInfo, codeSize / 4), an enum sibling plus a constant over
+    // a constant (VkPipelineMultisampleStateCreateInfo, (rasterizationSamples + 31) / 32), and two constants with no
+    // sibling at all (VkMicromapVersionInfoEXT, 2*VK_UUID_SIZE). The descriptor carries the expression as a
+    // StoreValue type, the Action's counted-run Apply evaluates it through FieldCount::Get, and the procedural body
+    // each replaced is the oracle. Two retained partners: VkPipelineRasterizationStateCreateInfo has the same scalar,
+    // enum and float fields as the multisample state with no run, and VkAccelerationStructureVersionInfoKHR is the
+    // micromap version's byte-identical twin on its procedural body.
+    namespace shader_field      = schema::vulkan::fields::VkShaderModuleCreateInfo;
+    namespace multisample_field = schema::vulkan::fields::VkPipelineMultisampleStateCreateInfo;
+    namespace micromap_field    = schema::vulkan::fields::VkMicromapVersionInfoEXT;
+
+    // The descriptors state the registry's arithmetic in prefix form, literals unsigned beside an unsigned
+    // sibling or constant and int beside an enum.
+    static_assert(std::is_same_v<schema::FieldCount<shader_field::pCode>,
+                                 schema::Quotient<schema::FieldValue<shader_field::codeSize>, schema::Constant<4u>>>);
+    static_assert(
+        std::is_same_v<schema::FieldCount<multisample_field::pSampleMask>,
+                       schema::Quotient<schema::Sum<schema::FieldValue<multisample_field::rasterizationSamples>,
+                                                    schema::Constant<31>>,
+                                        schema::Constant<32>>>);
+    static_assert(std::is_same_v<schema::FieldCount<micromap_field::pVersionData>,
+                                 schema::Product<schema::Constant<2u>, schema::Constant<VK_UUID_SIZE>>>);
+
+    // Every operand is a StoreValue, nothing else is, and a count yields an integer or an enum but never a bool.
+    static_assert(schema::StoreValue<schema::FieldValue<shader_field::codeSize>>);
+    static_assert(schema::StoreValue<schema::Constant<4u>>);
+    static_assert(schema::StoreValue<schema::Sum<schema::Constant<1u>, schema::Constant<2u>>>);
+    static_assert(!schema::StoreValue<int>);
+    static_assert(!schema::StoreValue<shader_field::codeSize>);
+    static_assert(schema::CountValue<size_t>);
+    static_assert(schema::CountValue<VkSampleCountFlagBits>);
+    static_assert(!schema::CountValue<bool>);
+    static_assert(!schema::CountValue<float>);
+
+    // A constant-only count evaluates on any store, and the arithmetic runs in the operands' own types.
+    static_assert(schema::HasFieldCount<VkMicromapVersionInfoEXT, micromap_field::pVersionData>);
+    static_assert(schema::HasFieldCount<VkShaderModuleCreateInfo, shader_field::pCode>);
+    static_assert(schema::HasFieldCount<VkPipelineMultisampleStateCreateInfo, multisample_field::pSampleMask>);
+    static_assert(std::is_same_v<decltype(schema::FieldCount<shader_field::pCode>::Get(
+                                     std::declval<const VkShaderModuleCreateInfo&>())),
+                                 size_t>);
+    static_assert(std::is_same_v<decltype(schema::FieldCount<multisample_field::pSampleMask>::Get(
+                                     std::declval<const VkPipelineMultisampleStateCreateInfo&>())),
+                                 int>);
+    static_assert(schema::FieldCount<micromap_field::pVersionData>::Get(VkMicromapVersionInfoEXT{}) == 32u);
+
+    auto same_bytes = [](const encode::ParameterBuffer& actual, const encode::ParameterBuffer& oracle) {
+        return actual.GetDataSize() == oracle.GetDataSize() &&
+               std::memcmp(actual.GetData(), oracle.GetData(), actual.GetDataSize()) == 0;
+    };
+
+    auto matches = [&](const auto& value, auto&& write_oracle) {
+        encode::ParameterBuffer  buffer;
+        encode::ParameterEncoder encoder(&buffer);
+        encode::EncodeStruct(&encoder, value);
+
+        encode::ParameterBuffer  oracle_buffer;
+        encode::ParameterEncoder oracle(&oracle_buffer);
+        write_oracle(oracle);
+
+        return same_bytes(buffer, oracle_buffer);
+    };
+
+    // codeSize / 4: an odd word count, then no code at all.
+    const uint32_t words[] = { 0x07230203u, 0x00010000u, 0x0008000au, 0x0000000du, 0x00000000u };
+
+    for (const size_t code_size : { sizeof(words), size_t{ 0 } })
+    {
+        VkShaderModuleCreateInfo shader{
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, nullptr, 0u, code_size, code_size ? words : nullptr
+        };
+
+        CHECK(schema::FieldCount<shader_field::pCode>::Get(shader) == code_size / 4);
+        CHECK(matches(shader, [&](encode::ParameterEncoder& oracle) {
+            oracle.EncodeEnumValue(shader.sType);
+            encode::EncodePNextStruct(&oracle, shader.pNext);
+            oracle.EncodeFlagsValue(shader.flags);
+            oracle.EncodeSizeTValue(shader.codeSize);
+            oracle.EncodeUInt32Array(shader.pCode, shader.codeSize / 4);
+        }));
+    }
+
+    // (rasterizationSamples + 31) / 32: one mask word at 4 samples, two at 64.
+    const VkSampleMask masks[] = { 0xffff0000u, 0x0000ffffu };
+
+    for (const VkSampleCountFlagBits samples : { VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_64_BIT })
+    {
+        VkPipelineMultisampleStateCreateInfo multisample{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+                                                          nullptr,
+                                                          0u,
+                                                          samples,
+                                                          VK_TRUE,
+                                                          0.75f,
+                                                          masks,
+                                                          VK_FALSE,
+                                                          VK_TRUE };
+
+        CHECK(schema::FieldCount<multisample_field::pSampleMask>::Get(multisample) == (samples + 31) / 32);
+        CHECK(matches(multisample, [&](encode::ParameterEncoder& oracle) {
+            oracle.EncodeEnumValue(multisample.sType);
+            encode::EncodePNextStruct(&oracle, multisample.pNext);
+            oracle.EncodeFlagsValue(multisample.flags);
+            oracle.EncodeEnumValue(multisample.rasterizationSamples);
+            oracle.EncodeUInt32Value(multisample.sampleShadingEnable);
+            oracle.EncodeFloatValue(multisample.minSampleShading);
+            oracle.EncodeUInt32Array(multisample.pSampleMask, (multisample.rasterizationSamples + 31) / 32);
+            oracle.EncodeUInt32Value(multisample.alphaToCoverageEnable);
+            oracle.EncodeUInt32Value(multisample.alphaToOneEnable);
+        }));
+    }
+
+    // 2*VK_UUID_SIZE: thirty-two bytes with no sibling to say so.
+    uint8_t version[2 * VK_UUID_SIZE];
+    for (size_t i = 0; i < sizeof(version); ++i)
+    {
+        version[i] = static_cast<uint8_t>(0xa0u + i);
+    }
+
+    VkMicromapVersionInfoEXT micromap{ VK_STRUCTURE_TYPE_MICROMAP_VERSION_INFO_EXT, nullptr, version };
+
+    CHECK(matches(micromap, [&](encode::ParameterEncoder& oracle) {
+        oracle.EncodeEnumValue(micromap.sType);
+        encode::EncodePNextStructIfValid(&oracle, micromap.pNext);
+        oracle.EncodeUInt8Array(micromap.pVersionData, 2 * VK_UUID_SIZE);
+    }));
+
+    // Retained partner: the multisample state's neighbour in the pipeline, scalars, enums and floats, no run.
+    VkPipelineRasterizationStateCreateInfo rasterization{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+                                                          nullptr,
+                                                          0u,
+                                                          VK_TRUE,
+                                                          VK_FALSE,
+                                                          VK_POLYGON_MODE_LINE,
+                                                          VK_CULL_MODE_BACK_BIT,
+                                                          VK_FRONT_FACE_CLOCKWISE,
+                                                          VK_TRUE,
+                                                          1.5f,
+                                                          2.5f,
+                                                          0.5f,
+                                                          3.0f };
+
+    CHECK(matches(rasterization, [&](encode::ParameterEncoder& oracle) {
+        oracle.EncodeEnumValue(rasterization.sType);
+        encode::EncodePNextStruct(&oracle, rasterization.pNext);
+        oracle.EncodeFlagsValue(rasterization.flags);
+        oracle.EncodeUInt32Value(rasterization.depthClampEnable);
+        oracle.EncodeUInt32Value(rasterization.rasterizerDiscardEnable);
+        oracle.EncodeEnumValue(rasterization.polygonMode);
+        oracle.EncodeFlagsValue(rasterization.cullMode);
+        oracle.EncodeEnumValue(rasterization.frontFace);
+        oracle.EncodeUInt32Value(rasterization.depthBiasEnable);
+        oracle.EncodeFloatValue(rasterization.depthBiasConstantFactor);
+        oracle.EncodeFloatValue(rasterization.depthBiasClamp);
+        oracle.EncodeFloatValue(rasterization.depthBiasSlopeFactor);
+        oracle.EncodeFloatValue(rasterization.lineWidth);
+    }));
+
+    // Retained partner: the micromap version's twin, same three fields and the same constant length.
+    VkAccelerationStructureVersionInfoKHR acceleration{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_VERSION_INFO_KHR,
+                                                        nullptr,
+                                                        version };
+
+    CHECK(matches(acceleration, [&](encode::ParameterEncoder& oracle) {
+        oracle.EncodeEnumValue(acceleration.sType);
+        encode::EncodePNextStructIfValid(&oracle, acceleration.pNext);
+        oracle.EncodeUInt8Array(acceleration.pVersionData, 2 * VK_UUID_SIZE);
+    }));
+}
+
 TEST_CASE("Get yields a Field's value in place or by copy", "[schema]")
 {
     // An addressable member is referenced where it lives: Get returns the member itself. A bitfield has no address,

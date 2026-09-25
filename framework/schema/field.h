@@ -98,10 +98,11 @@ GFXRECON_END_NAMESPACE(field_shape)
 //   is_return         A command's Return Field only, always true. Absent means false; schema.h's return predicate
 //                     reads it that way so that no other descriptor has to state it.
 //   pointer_count     Pointer, Array and PointerArray. The declared star count, one or two.
-//   field_count       Array, PointerArray or StaticArray whose registry length an Action can evaluate: a FieldValue
+//   field_count       Array, PointerArray or StaticArray whose registry length an Action can evaluate: a StoreValue
 //                     expression over the owner's storage. FieldValue<Sibling> for a length that is exactly one
 //                     sibling member, or a sibling and the constant 1 for a PointerArray; FieldValue<Sibling, Member>
-//                     for a length read through a pointer sibling, `sibling->member`.
+//                     for a length read through a pointer sibling, `sibling->member`; Sum, Product and Quotient over
+//                     those and Constant for the registry's arithmetic, `codeSize / 4`, `2*VK_UUID_SIZE`.
 //   length_expression Array or StaticArray whose registry length is anything else: the registry text as
 //                     written, for example a computed length or the comma-joined extents of a matrix. Not read by
 //                     any operation; a length no Action can evaluate is recorded here rather than dropped.
@@ -330,14 +331,31 @@ concept ExtensionChainShapeField = std::same_as<typename Field::shape, field_sha
 template <typename Field>
 concept VoidReturnShapeField = std::same_as<typename Field::shape, field_shape::VoidReturn>;
 
-// A value read from storage by Field, as a type an Action evaluates with Get(store). The one-argument form reads the
-// Field's own value. The two-argument form reads Member from what the Field points to: Store holds Field, FieldStore
-// is what Field's value points to, and is the Store that Member is read from.
+// Store values. A store value is a type with a static Get(store) that yields a value; a descriptor names one as its
+// field_count, and an Action evaluates it. The base marks the types that are one, so an operator can require it of
+// its operands and a descriptor member can be constrained on it.
+struct StoreValueBase
+{};
+
+template <typename T>
+concept StoreValue = std::derived_from<T, StoreValueBase>;
+
+// What a count operand may yield: an integer, or a C enum standing for one, as rasterizationSamples does. bool is an
+// integer to the language and not a count.
+template <typename T>
+concept CountValue = (std::integral<T> && !std::same_as<T, bool>) || std::is_enum_v<T>;
+
+template <typename Operand, typename Store>
+using OperandValue = decltype(Operand::Get(std::declval<const Store&>()));
+
+// A value read from storage by Field. The one-argument form reads the Field's own value. The two-argument form reads
+// Member from what the Field points to: Store holds Field, FieldStore is what Field's value points to, and is the
+// Store that Member is read from.
 template <typename Field, typename... Member>
 struct FieldValue;
 
 template <typename Field>
-struct FieldValue<Field>
+struct FieldValue<Field> : StoreValueBase
 {
     template <typename Store>
     requires HasMember<Store, Field>
@@ -345,7 +363,7 @@ struct FieldValue<Field>
 };
 
 template <typename Field, typename Member>
-struct FieldValue<Field, Member>
+struct FieldValue<Field, Member> : StoreValueBase
 {
     static_assert(PointerShapeField<Field>,
                   "Pointer Field only. Struct Field: add a GetRef branch in Get and FieldStore.");
@@ -356,6 +374,45 @@ struct FieldValue<Field, Member>
     template <typename Store>
     requires HasMember<FieldStore<Store>, Member>
     [[nodiscard]] static auto Get(const Store& store) { return schema::Get(*FieldValue<Field>::Get(store), Member{}); }
+};
+
+// A number written into the schema, in the type the generator gave the literal. An API constant such as VK_UUID_SIZE
+// is a macro, so the type carries its value and the generated header's NOTE line carries its name.
+template <auto V>
+struct Constant : StoreValueBase
+{
+    template <typename Store>
+    [[nodiscard]] static constexpr auto Get(const Store&)
+    {
+        return V;
+    }
+};
+
+// Arithmetic over two operands, in the operands' own types under the usual conversions, so an enum promotes and a
+// literal beside an unsigned sibling is written unsigned. The Apply narrows the result once, as it does for a plain
+// sibling. The registry's lengths use these three operators and no others.
+template <StoreValue Left, StoreValue Right>
+struct Sum : StoreValueBase
+{
+    template <typename Store>
+    requires CountValue<OperandValue<Left, Store>> && CountValue<OperandValue<Right, Store>>
+    [[nodiscard]] static constexpr auto Get(const Store& store) { return Left::Get(store) + Right::Get(store); }
+};
+
+template <StoreValue Left, StoreValue Right>
+struct Product : StoreValueBase
+{
+    template <typename Store>
+    requires CountValue<OperandValue<Left, Store>> && CountValue<OperandValue<Right, Store>>
+    [[nodiscard]] static constexpr auto Get(const Store& store) { return Left::Get(store) * Right::Get(store); }
+};
+
+template <StoreValue Left, StoreValue Right>
+struct Quotient : StoreValueBase
+{
+    template <typename Store>
+    requires CountValue<OperandValue<Left, Store>> && CountValue<OperandValue<Right, Store>>
+    [[nodiscard]] static constexpr auto Get(const Store& store) { return Left::Get(store) / Right::Get(store); }
 };
 
 // Storage concepts. These describe what a storage type holds for a Field, and stay independent of any one operation

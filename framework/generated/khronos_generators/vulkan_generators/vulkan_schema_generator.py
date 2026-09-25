@@ -109,12 +109,15 @@ _SCHEMA_DRIVEN_ENCODE_STRUCTS = frozenset((
     'VkImportMemoryWin32HandleInfoKHR',
     'VkInstanceCreateInfo',
     'VkMappedMemoryRange',
+    'VkMicromapVersionInfoEXT',
     'VkPhysicalDeviceGroupProperties',
     'VkPhysicalDeviceMemoryProperties',
     'VkPipelineCacheCreateInfo',
     'VkPipelineCacheHeaderVersionOne',
     'VkPipelineCreateInfoKHR',
+    'VkPipelineMultisampleStateCreateInfo',
     'VkRenderingInfo',
+    'VkShaderModuleCreateInfo',
     'VkSubmitInfo',
     'VkSubpassEndInfo',
     'VkSurfaceFullScreenExclusiveWin32InfoEXT',
@@ -789,6 +792,106 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         return sibling_name, self.get_field_path(sibling.base_type, member_name)
 
+    def parse_count_expression(self, value, members):
+        """The registry's arithmetic length as a tree, or None when it is not one the schema states.
+
+        The registry writes a computed length as C text in altlen: `codeSize / 4`, `(rasterizationSamples + 31) / 32`,
+        `2*VK_UUID_SIZE`. The grammar is integers, sibling names, API constants, +, *, / and parentheses, and nothing
+        else; a length outside it stays as length_expression text. Each node is ('number', text), ('sibling', name),
+        ('constant', name) or (op, left, right) with op one of '+', '*', '/'.
+        """
+        import re
+
+        length = value.array_length
+
+        if not length or self.get_field_shape(value) not in ('Array', 'PointerArray'):
+            return None
+
+        if not any(op in length for op in '+*/'):
+            return None
+
+        tokens = re.findall(r'\d+|[A-Za-z_]\w*|[()+*/]|\S', length)
+        sibling_names = {member.name for member in members}
+        position = 0
+
+        def peek():
+            return tokens[position] if position < len(tokens) else None
+
+        def take():
+            nonlocal position
+            token = tokens[position]
+            position += 1
+            return token
+
+        def factor():
+            token = take()
+            if token == '(':
+                node = expression()
+                if take() != ')':
+                    raise ValueError(length)
+                return node
+            if token.isdigit():
+                return ('number', token)
+            if token in sibling_names:
+                return ('sibling', token)
+            if token in self.registry.enumdict:
+                return ('constant', token)
+            raise ValueError(length)
+
+        def term():
+            node = factor()
+            while peek() in ('*', '/'):
+                node = (take(), node, factor())
+            return node
+
+        def expression():
+            node = term()
+            while peek() == '+':
+                node = (take(), node, term())
+            return node
+
+        try:
+            tree = expression()
+        except (ValueError, IndexError):
+            return None
+
+        if position != len(tokens):
+            return None
+
+        return tree
+
+    def count_expression_siblings(self, tree):
+        """The sibling names a count expression reads."""
+        if tree[0] == 'sibling':
+            return [tree[1]]
+        if tree[0] in ('number', 'constant'):
+            return []
+        return self.count_expression_siblings(tree[1]) + self.count_expression_siblings(tree[2])
+
+    def make_count_expression(self, tree, members):
+        """The StoreValue type for a count expression tree.
+
+        A literal is written unsigned unless an enum sibling takes part, so that it meets an unsigned sibling or an
+        unsigned API constant without a sign conversion, and an enum's promotion to int stays an int.
+        """
+        siblings = self.count_expression_siblings(tree)
+        has_enum = any(
+            self.is_enum(member.base_type) for member in members if member.name in siblings
+        )
+        suffix = '' if has_enum else 'u'
+        operators = {'+': 'Sum', '*': 'Product', '/': 'Quotient'}
+
+        def emit(node):
+            if node[0] == 'number':
+                return 'Constant<{}{}>'.format(node[1], suffix)
+            if node[0] == 'sibling':
+                return 'FieldValue<{}>'.format(node[1])
+            if node[0] == 'constant':
+                return 'Constant<{}>'.format(node[1])
+            return '{}<{}, {}>'.format(operators[node[0]], emit(node[1]), emit(node[2]))
+
+        return emit(tree)
+
     def get_field_count(self, value, members):
         """The field_count expression, or None when no Action can evaluate the registry length."""
         count_field = self.get_count_field(value, members)
@@ -801,7 +904,19 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         if count_member:
             return 'FieldValue<{}, {}>'.format(*count_member)
 
+        tree = self.parse_count_expression(value, members)
+
+        if tree:
+            return self.make_count_expression(tree, members)
+
         return None
+
+    def get_count_note(self, value, members):
+        """The NOTE line written above a descriptor whose count is arithmetic, carrying the registry's text."""
+        if self.parse_count_expression(value, members) is None:
+            return None
+
+        return '// NOTE: field_count evaluates {}'.format(value.array_length)
 
     def get_static_array_extents(self, value):
         """The declared extents of a fixed-extent array member, in declaration order, as the registry spells them."""
@@ -905,25 +1020,15 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         generic_handles = self.get_generic_handles(owner, is_command, members)
 
-        # A field_count or a selector_field can name a sibling that the registry declares later, so forward declare
-        # every Field that a sibling names.
-        referenced = [
-            count for count in (
-                self.get_count_field(value, members) for value in members
-            ) if count
-        ]
-        referenced.extend(
-            pair[0] for pair in (
-                self.get_count_member(value, members) for value in members
-            ) if pair
-        )
-        referenced.extend(generic_handles.values())
-
-        for member in members:
-            if member.name in referenced:
-                write('struct {};'.format(member.name), file=self.outFile)
-
+        # A field_count or a selector_field names a sibling, and the Vulkan registry always declares that sibling
+        # before the member that names it, so the descriptors are written in declaration order with no forward
+        # declarations. That is a Vulkan-derived rule: a sibling named before its declaration fails to compile at
+        # that line, and an API that breaks the rule needs a "references" fact in the IR and a backend that emits
+        # the declaration.
         for value in members:
+            note = self.get_count_note(value, members)
+            if note:
+                write(note, file=self.outFile)
             write(
                 self.make_field_definition(value, members, generic_handles, owner),
                 file=self.outFile

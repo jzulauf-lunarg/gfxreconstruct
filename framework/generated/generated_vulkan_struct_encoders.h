@@ -161,7 +161,6 @@ void EncodeStruct(ParameterEncoder* encoder, const VkMemoryBarrier& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkDispatchIndirectCommand& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkEventCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkBufferViewCreateInfo& value);
-void EncodeStruct(ParameterEncoder* encoder, const VkShaderModuleCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkSpecializationMapEntry& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkSpecializationInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineShaderStageCreateInfo& value);
@@ -187,7 +186,6 @@ void EncodeStruct(ParameterEncoder* encoder, const VkPipelineColorBlendStateCrea
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineDepthStencilStateCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineDynamicStateCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineInputAssemblyStateCreateInfo& value);
-void EncodeStruct(ParameterEncoder* encoder, const VkPipelineMultisampleStateCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineRasterizationStateCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineTessellationStateCreateInfo& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPipelineVertexInputStateCreateInfo& value);
@@ -1048,7 +1046,6 @@ void EncodeStruct(ParameterEncoder* encoder, const VkMicromapBuildInfoEXT& value
 void EncodeStruct(ParameterEncoder* encoder, const VkMicromapCreateInfoEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceOpacityMicromapFeaturesEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkPhysicalDeviceOpacityMicromapPropertiesEXT& value);
-void EncodeStruct(ParameterEncoder* encoder, const VkMicromapVersionInfoEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkCopyMicromapToMemoryInfoEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkCopyMemoryToMicromapInfoEXT& value);
 void EncodeStruct(ParameterEncoder* encoder, const VkCopyMicromapInfoEXT& value);
@@ -1385,12 +1382,15 @@ using SchemaDrivenStructs = util::TypeList<
     VkImportMemoryWin32HandleInfoNV,
     VkInstanceCreateInfo,
     VkMappedMemoryRange,
+    VkMicromapVersionInfoEXT,
     VkPhysicalDeviceGroupProperties,
     VkPhysicalDeviceMemoryProperties,
     VkPipelineCacheCreateInfo,
     VkPipelineCacheHeaderVersionOne,
     VkPipelineCreateInfoKHR,
+    VkPipelineMultisampleStateCreateInfo,
     VkRenderingInfo,
+    VkShaderModuleCreateInfo,
     VkSubmitInfo,
     VkSubpassEndInfo,
     VkSurfaceFullScreenExclusiveWin32InfoEXT,
