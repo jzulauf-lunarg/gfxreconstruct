@@ -91,44 +91,17 @@ def is_schema_driven(generator, struct):
     )
 
 
-# The structures whose Encode the schema drives. Encode is pre-inversion: this is a positive list that grows one
-# structure at a time, each migrated against its retained procedural body. The list is private to this predicate;
-# the encoder header and body generators iterate the filtered structure names through it, the way the decode
-# generators do through is_schema_driven, so when Encode inverts this body changes and no generator does.
-_SCHEMA_DRIVEN_ENCODE_STRUCTS = frozenset((
-    'VkAccelerationStructureGeometryMicromapDataKHR',
-    'VkBindMemoryStatus',
-    'VkBufferCreateInfo',
-    'VkBufferMemoryBarrier',
-    'VkDebugUtilsMessengerCreateInfoEXT',
-    'VkDebugUtilsObjectNameInfoEXT',
-    'VkExtensionProperties',
-    'VkExtent2D',
-    'VkImageBlit',
-    'VkImportMemoryWin32HandleInfoNV',
-    'VkImportMemoryWin32HandleInfoKHR',
-    'VkInstanceCreateInfo',
-    'VkMappedMemoryRange',
-    'VkMicromapVersionInfoEXT',
-    'VkPhysicalDeviceGroupProperties',
-    'VkPhysicalDeviceMemoryProperties',
-    'VkPipelineCacheCreateInfo',
-    'VkPipelineCacheHeaderVersionOne',
-    'VkPipelineCreateInfoKHR',
-    'VkPipelineMultisampleStateCreateInfo',
-    'VkRenderingInfo',
-    'VkShaderModuleCreateInfo',
-    'VkSubmitInfo',
-    'VkSubpassEndInfo',
-    'VkSurfaceFullScreenExclusiveWin32InfoEXT',
-    'VkTransformMatrixKHR',
-    'VkWin32SurfaceCreateInfoKHR'
-))
+# The structures whose Encode the schema does not drive. Encode inverted 2026-09-28: every describable structure
+# is driven, and this exclusion list starts empty, the way decode's NonSchemaDrivenStructs reads. A structure goes
+# on it only for an arrangement the schema has no shape for; the Action's compile names the field that needs it.
+# The encoder header and body generators iterate the filtered structure names through this predicate, so a change
+# here changes no generator.
+_NON_SCHEMA_DRIVEN_ENCODE_STRUCTS = frozenset()
 
 
 def is_schema_driven_encode(generator, struct):
     """Whether the schema drives this structure's Encode, rather than a body generated for it."""
-    return struct in _SCHEMA_DRIVEN_ENCODE_STRUCTS
+    return struct not in _NON_SCHEMA_DRIVEN_ENCODE_STRUCTS
 
 
 class VulkanSchemaBaseGeneratorOptions(VulkanBaseGeneratorOptions):
@@ -309,6 +282,26 @@ class VulkanSchemaDecodedCommandMembersGeneratorOptions(
 
     def storage_headers(self):
         return ('decode/vulkan_decoder_args.h', 'generated/generated_vulkan_decoder_args.h')
+
+
+class VulkanEncodeCaptureWrappersGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
+    """Options for the capture wrapper rows: one CaptureWrapperFor specialization per handle descriptor."""
+
+    def add_part_headers(self, begin_end):
+        begin_end.specific_headers.extend((
+            'encode/vulkan_encode_capture_wrappers.h',
+            'util/defines.h',
+        ))
+
+
+class VulkanEncodeDescriptorForGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
+    """Options for the descriptor rows: one DescriptorFor specialization per described structure."""
+
+    def add_part_headers(self, begin_end):
+        begin_end.specific_headers.extend((
+            'encode/vulkan_encode_descriptor_for.h',
+            'util/defines.h',
+        ))
 
 
 class VulkanSchemaChecksGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
@@ -1552,3 +1545,33 @@ class VulkanSchemaChecksGenerator(VulkanSchemaBaseGenerator):
 
     def write_part(self):
         self.write_checks()
+
+
+class VulkanEncodeCaptureWrappersGenerator(VulkanSchemaBaseGenerator):
+    """One CaptureWrapperFor row per handle descriptor, by the naming rule the base generator applies to every
+    procedural handle call: the handle name without its Vk prefix, plus Wrapper. The source is the schema's handle
+    descriptors, not the registry's handles, so a handle the generator filters out gets no row; a handle without a
+    wrapper struct fails at its row.
+    """
+
+    def write_part(self):
+        write('GFXRECON_BEGIN_NAMESPACE(encode)', file=self.outFile)
+        self.newline()
+        for name in sorted(self.api_type_kinds):
+            if self.api_type_kinds[name] != 'Handle' or name == self.GENERIC_HANDLE_DESCRIPTOR:
+                continue
+            write('GFXRECON_VULKAN_CAPTURE_WRAPPER_FOR({}, {}Wrapper);'.format(name, name[2:]), file=self.outFile)
+        self.newline()
+        write('GFXRECON_END_NAMESPACE(encode)', file=self.outFile)
+
+
+class VulkanEncodeDescriptorForGenerator(VulkanSchemaBaseGenerator):
+    """One DescriptorFor row per described structure: the native structure to its API type descriptor."""
+
+    def write_part(self):
+        write('GFXRECON_BEGIN_NAMESPACE(encode)', file=self.outFile)
+        self.newline()
+        for struct in sorted(self.schema_structs):
+            write('GFXRECON_VULKAN_DESCRIPTOR_FOR({});'.format(struct), file=self.outFile)
+        self.newline()
+        write('GFXRECON_END_NAMESPACE(encode)', file=self.outFile)

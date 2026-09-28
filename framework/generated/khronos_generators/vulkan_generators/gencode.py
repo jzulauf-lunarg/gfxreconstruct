@@ -67,7 +67,9 @@ from vulkan_schema_generator import (
     VulkanSchemaNativeStructMembersGenerator, VulkanSchemaNativeStructMembersGeneratorOptions,
     VulkanSchemaDecodedStructMembersGenerator, VulkanSchemaDecodedStructMembersGeneratorOptions,
     VulkanSchemaDecodedCommandMembersGenerator, VulkanSchemaDecodedCommandMembersGeneratorOptions,
-    VulkanSchemaChecksGenerator, VulkanSchemaChecksGeneratorOptions
+    VulkanSchemaChecksGenerator, VulkanSchemaChecksGeneratorOptions,
+    VulkanEncodeCaptureWrappersGenerator, VulkanEncodeCaptureWrappersGeneratorOptions,
+    VulkanEncodeDescriptorForGenerator, VulkanEncodeDescriptorForGeneratorOptions
 )
 
 # Consumers
@@ -365,6 +367,10 @@ def make_gen_opts(args):
          VulkanSchemaDecodedStructMembersGenerator, VulkanSchemaDecodedStructMembersGeneratorOptions, True),
         ('generated_vulkan_schema_decoded_command_members.h',
          VulkanSchemaDecodedCommandMembersGenerator, VulkanSchemaDecodedCommandMembersGeneratorOptions, True),
+        ('generated_vulkan_encode_capture_wrappers.h',
+         VulkanEncodeCaptureWrappersGenerator, VulkanEncodeCaptureWrappersGeneratorOptions, True),
+        ('generated_vulkan_encode_descriptor_for.h',
+         VulkanEncodeDescriptorForGenerator, VulkanEncodeDescriptorForGeneratorOptions, True),
         ('generated_vulkan_schema_checks.cpp',
          VulkanSchemaChecksGenerator, VulkanSchemaChecksGeneratorOptions, False),
     ):

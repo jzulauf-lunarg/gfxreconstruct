@@ -86,18 +86,19 @@ class VulkanStructEncodersHeaderGenerator(VulkanBaseGenerator, KhronosStructEnco
         return is_schema_driven_encode(self, struct_type)
 
     def write_schema_driven_declarations(self):
-        """The declaration side of the structures the schema drives."""
+        """The declaration side: the structures the schema does not drive, which reads the predicate inverted."""
         self.newline()
-        write('// The structures the schema drives. encode/vulkan_encode_struct.h includes this header and declares the', file=self.outFile)
-        write('// constrained EncodeStruct over this list beside the prototypes.', file=self.outFile)
-        write('using SchemaDrivenStructs = util::TypeList<', file=self.outFile)
+        write('// The structures the schema does not drive: each keeps a generated body and a prototype above.', file=self.outFile)
+        write('// encode/vulkan_encode_struct.h includes this header and declares the constrained EncodeStruct over', file=self.outFile)
+        write('// this list beside the prototypes; it says why the list is an exclusion.', file=self.outFile)
+        write('using NonSchemaDrivenStructs = util::TypeList<', file=self.outFile)
 
-        driven = sorted(
+        excluded = sorted(
             struct for struct in self.get_all_filtered_struct_names()
-            if is_schema_driven_encode(self, struct)
+            if not is_schema_driven_encode(self, struct)
         )
-        for index, struct in enumerate(driven):
-            comma = ',' if index + 1 < len(driven) else ''
+        for index, struct in enumerate(excluded):
+            comma = ',' if index + 1 < len(excluded) else ''
             write('    {}{}'.format(struct, comma), file=self.outFile)
 
         write('>;', file=self.outFile)

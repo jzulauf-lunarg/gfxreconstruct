@@ -56,11 +56,19 @@ GFXRECON_BEGIN_NAMESPACE(encode)
 struct EncoderAdapter
 {
     // Scalar and address kinds: value, pointer, run. GeneralScalarKindField admits the address kind because its bits
-    // are the value recorded, and Encode converts a pointer with the cast it needs.
-    template <typename Field>
+    // are the value recorded, and Encode converts a pointer with the cast it needs. The value entry takes the
+    // member's declared type rather than the element type. An address member is declared void*, const void*, or a
+    // platform type's pointer (CAMetalLayer*), all one Address kind whose element type is void*; a scalar member
+    // may be declared as a platform typedef of its element type's width (DWORD for uint32_t); the encoder records
+    // the bits of any of them.
+    template <typename Field, typename DeclaredType>
     requires schema::GeneralScalarKindField<Field> && schema::ValueShapeField<Field>
-    void operator()(Field, ParameterEncoder* encoder, const schema::FieldElementType<Field>& value) const
+    void operator()(Field, ParameterEncoder* encoder, const DeclaredType& value) const
     {
+        using ElementType = schema::FieldElementType<Field>;
+        static_assert(schema::AddressKindField<Field> || std::is_same_v<DeclaredType, ElementType> ||
+                          (std::is_integral_v<DeclaredType> && sizeof(DeclaredType) == sizeof(ElementType)),
+                      "A scalar member is declared as its element type or a same-width integral typedef of it");
         encoder->Encode(schema::FieldKind<Field>{}, value);
     }
 

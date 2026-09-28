@@ -111,6 +111,8 @@ generate_targets = encode_oracle_targets + [
     'generated_vulkan_schema_native_struct_members.h',
     'generated_vulkan_schema_decoded_struct_members.h',
     'generated_vulkan_schema_decoded_command_members.h',
+    'generated_vulkan_encode_capture_wrappers.h',
+    'generated_vulkan_encode_descriptor_for.h',
     'generated_vulkan_schema_checks.cpp',
 ]
 

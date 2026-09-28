@@ -38,7 +38,7 @@
 #include "decode/vulkan_decode_struct_impl.h"
 #include "encode/parameter_buffer.h"
 #include "encode/parameter_encoder.h"
-#include "encode/vulkan_encode_capture_wrappers.h"
+#include "generated/generated_vulkan_encode_capture_wrappers.h"
 #include "encode/vulkan_encode_action.h"
 #include "encode/vulkan_encode_struct.h"
 #include "encode/vulkan_handle_wrapper_util.h"

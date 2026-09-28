@@ -21,16 +21,16 @@
 */
 
 // Every EncodeStruct declaration, in one header. The generated struct-encoders header declares the prototypes of
-// the structures that keep a generated body and the SchemaDrivenStructs list; this header includes it and adds the
-// one declaration that serves every other structure, a constrained function template in place of one prototype per
-// structure. Include this, not the generated header, to call EncodeStruct.
+// the structures that keep a generated body, and the NonSchemaDrivenStructs list; this header includes it and adds
+// the one declaration that serves every other structure, a constrained function template in place of one prototype
+// per structure. Include this, not the generated header, to call EncodeStruct.
 //
 // The split is deliberate: the generated file carries the data, which is the list, and this file carries the logic
 // that reads it, so that logic is C++ in a header rather than a Python string in a generator.
 //
-// Encode is pre-inversion, so the list names what the schema drives and grows one structure at a time, each
-// migrated against its retained procedural body. When every describable structure is on it, the list flips to an
-// exclusion the way decode's did, and the concept here flips with it.
+// Encode is inverted: the schema drives every describable structure, and the list is the exclusion, which is empty
+// until a structure appears that the schema has no shape for. It reads inverted so that a new structure is driven
+// by default, the way decode's list reads.
 //
 // The constraint is for diagnosis, not selection: a non-template beats a template wherever a prototype still
 // exists, so a structure with a body of its own fails at the call naming its type rather than at the link.
@@ -49,7 +49,7 @@ GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
 
 template <typename Struct>
-concept SchemaDriven = util::TypeListContainsV<SchemaDrivenStructs, Struct>;
+concept SchemaDriven = !util::TypeListContainsV<NonSchemaDrivenStructs, Struct>;
 
 template <SchemaDriven Struct>
 void EncodeStruct(ParameterEncoder* encoder, const Struct& value);
