@@ -48,6 +48,7 @@
 #include "generated/generated_vulkan_schema_decoded_command_members.h"
 #include "generated/generated_vulkan_schema_decoded_struct_members.h"
 #include "generated/generated_vulkan_schema_native_struct_members.h"
+#include "test/schema_fill.h"
 
 #include <cstring>
 #include <memory>
@@ -3022,4 +3023,23 @@ TEST_CASE("A field walk descends into an embedded structure", "[schema]")
 
     DecodeAllocator::End();
     util::Log::Release();
+}
+
+TEST_CASE("The schema filler populates every described field", "[schema][fill]")
+{
+    test::fill::FillContext context;
+    VkInstanceCreateInfo    info{};
+
+    test::fill::Fill<schema::vulkan::api_types::VkInstanceCreateInfo>(context, info);
+
+    // Scalars take the pattern, so do counts, and a counted run is allocated to its count; text is "ab"; a pointer to a
+    // described structure is allocated and filled through that structure's schema; the extension chain stays null.
+    CHECK(info.flags == 2);
+    CHECK(info.enabledLayerCount == 2);
+    REQUIRE(info.ppEnabledLayerNames != nullptr);
+    CHECK(std::string(info.ppEnabledLayerNames[1]) == "ab");
+    REQUIRE(info.pApplicationInfo != nullptr);
+    CHECK(info.pApplicationInfo->apiVersion == 2);
+    CHECK(std::string(info.pApplicationInfo->pApplicationName) == "ab");
+    CHECK(info.pNext == nullptr);
 }

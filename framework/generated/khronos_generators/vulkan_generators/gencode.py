@@ -102,7 +102,6 @@ from vulkan_recapture_func_table_generator import VulkanRecaptureFuncTableGenera
 
 # Struct Encoders
 from vulkan_struct_encoders_body_generator import VulkanStructEncodersBodyGenerator, VulkanStructEncodersBodyGeneratorOptions
-from vulkan_encode_oracles_generator import VulkanEncodeOraclesHeaderGenerator, VulkanEncodeOraclesHeaderGeneratorOptions, VulkanEncodeOraclesBodyGenerator, VulkanEncodeOraclesBodyGeneratorOptions, VulkanEncodeOracleTestsGenerator, VulkanEncodeOracleTestsGeneratorOptions
 from vulkan_struct_encoders_header_generator import VulkanStructEncodersHeaderGenerator, VulkanStructEncodersHeaderGeneratorOptions
 from vulkan_pnext_struct_encode_generator import EncodePNextStructGenerator, EncodePNextStructGeneratorOptions
 from vulkan_struct_handle_wrappers_header_generator import VulkanStructHandleWrappersHeaderGenerator, VulkanStructHandleWrappersHeaderGeneratorOptions
@@ -814,49 +813,6 @@ def make_gen_opts(args):
         VulkanStructEncodersBodyGenerator,
         VulkanStructEncodersBodyGeneratorOptions(
             filename='generated_vulkan_struct_encoders.cpp',
-            directory=directory,
-            blacklists=blacklists,
-            platform_types=platform_types,
-            prefix_text=prefix_strings + vk_prefix_strings,
-            protect_file=False,
-            protect_feature=False,
-            extra_headers=extra_headers
-        )
-    ]
-
-    # The encode oracle files, test-only (framework/generated/encode_oracles/); see vulkan_encode_oracles_generator.py.
-    gen_opts['generated_vulkan_encode_oracles.h'] = [
-        VulkanEncodeOraclesHeaderGenerator,
-        VulkanEncodeOraclesHeaderGeneratorOptions(
-            filename='generated_vulkan_encode_oracles.h',
-            directory=directory,
-            blacklists=blacklists,
-            platform_types=platform_types,
-            prefix_text=prefix_strings + vk_prefix_strings,
-            protect_file=True,
-            protect_feature=False,
-            extra_headers=extra_headers
-        )
-    ]
-
-    gen_opts['generated_vulkan_encode_oracles.cpp'] = [
-        VulkanEncodeOraclesBodyGenerator,
-        VulkanEncodeOraclesBodyGeneratorOptions(
-            filename='generated_vulkan_encode_oracles.cpp',
-            directory=directory,
-            blacklists=blacklists,
-            platform_types=platform_types,
-            prefix_text=prefix_strings + vk_prefix_strings,
-            protect_file=False,
-            protect_feature=False,
-            extra_headers=extra_headers
-        )
-    ]
-
-    gen_opts['generated_vulkan_encode_oracle_tests.cpp'] = [
-        VulkanEncodeOracleTestsGenerator,
-        VulkanEncodeOracleTestsGeneratorOptions(
-            filename='generated_vulkan_encode_oracle_tests.cpp',
             directory=directory,
             blacklists=blacklists,
             platform_types=platform_types,
