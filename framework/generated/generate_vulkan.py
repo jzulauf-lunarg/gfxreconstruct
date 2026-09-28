@@ -38,7 +38,15 @@ GENERATOR_DIR = os.path.join(SCRIPT_DIR, 'khronos_generators', 'vulkan_generator
 VK_HEADERS_DIR = os.path.join(SCRIPT_DIR, '..', '..', 'external', 'Vulkan-Headers')
 
 # File names to provide to the Vulkan XML Registry generator script.
-generate_targets = [
+# Test-only oracle files, written to their own directory so they can be retired together.
+ENCODE_ORACLE_DIR = os.path.join(SCRIPT_DIR, 'encode_oracles')
+encode_oracle_targets = [
+    'generated_vulkan_encode_oracles.h',
+    'generated_vulkan_encode_oracles.cpp',
+    'generated_vulkan_encode_oracle_tests.cpp',
+]
+
+generate_targets = encode_oracle_targets + [
     'generated_vulkan_struct_encoders.h',
     'generated_vulkan_struct_encoders.cpp',
     'generated_vulkan_struct_handle_wrappers.h',
@@ -110,11 +118,13 @@ generate_targets = [
 def generate_target(registry_path, video_path, headers_dir, env, target):
     '''Generate a single target file using the Vulkan XML registry generator script.'''
     print('Generating', target)
+    output_dir = ENCODE_ORACLE_DIR if target in encode_oracle_targets else SCRIPT_DIR
+    os.makedirs(output_dir, exist_ok=True)
     gencode_args = [
         sys.executable,
         os.path.join(GENERATOR_DIR, 'gencode.py'),
         '-o',
-        SCRIPT_DIR,
+        output_dir,
         '-configs',
         GENERATOR_DIR,
         '-registry',
