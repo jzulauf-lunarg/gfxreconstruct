@@ -28,8 +28,6 @@ owns a separate field order. One generator class writes each file:
     generated_vulkan_schema_fields.h: the Fields
     generated_vulkan_schema.h: the Schema specializations
     generated_vulkan_inventory.h: the inventory
-    generated_vulkan_schema_api_struct_members.h, generated_vulkan_schema_decoded_struct_members.h and
-    generated_vulkan_schema_decoded_command_members.h: the MemberPointer partitions, one per storage type
     generated_vulkan_schema_enumerants.h: the enumerant tables
     generated_vulkan_wire_types.h: the WireTypeOf specializations
     generated_vulkan_enum_to_string.cpp: the enum ToString definitions
@@ -37,8 +35,8 @@ owns a separate field order. One generator class writes each file:
 
 Separate files, not one: each includer compiles only the part it needs. The schema proper is three files, each
 including the one before: generated_vulkan_schema_types.h is what code that refers to an API element includes;
-generated_vulkan_schema_fields.h is what the MemberPointer partitions include; generated_vulkan_schema.h is what the
-field walk includes. Only the header that implements an operation includes the partitions it reads.
+generated_vulkan_schema_fields.h holds the Fields, each with its own accessor, and includes no storage type's header;
+generated_vulkan_schema.h is what the field walk includes.
 
 A platform typedef has no definition in vk.xml; platform_types.json supplies its C definition. The schema does not let
 an element hide a pointer: every pointer is declared on the Field, so that a Field's shape is read from its
@@ -55,7 +53,6 @@ import json
 import sys
 from generator import noneStr
 from khronos_base_generator import write
-from khronos_struct_decoders_header_generator import KhronosStructDecodersHeaderGenerator
 from vulkan_base_generator import VulkanBaseGenerator, VulkanBaseGeneratorOptions
 
 class VulkanSchemaBaseGeneratorOptions(VulkanBaseGeneratorOptions):
@@ -129,17 +126,16 @@ class VulkanSchemaTypesGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
 
 
 class VulkanSchemaFieldsGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
-    """Holds the options for generated_vulkan_schema_fields.h: the Fields. The MemberPointer partitions and
-    generated_vulkan_schema.h include it.
-    """
+    """Holds the options for generated_vulkan_schema_fields.h: the Fields. generated_vulkan_schema.h includes it."""
 
     def add_part_headers(self, begin_end):
         begin_end.specific_headers.extend((
             'generated/generated_vulkan_schema_types.h',
             'schema/field.h',
             'util/defines.h',
+            'util/type_list.h',
         ))
-        begin_end.system_headers.extend(('array', 'cstddef', 'string_view'))
+        begin_end.system_headers.extend(('array', 'cstddef', 'string_view', 'type_traits'))
 
 
 class VulkanSchemaGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
@@ -186,64 +182,6 @@ class VulkanInventoryGeneratorOptions(VulkanBaseGeneratorOptions):
             extra_headers=extra_headers
         )
         self.begin_end_file_data.common_api_headers = []
-
-
-class VulkanSchemaMemberPartitionGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
-    """Holds the options shared by the MemberPointer partitions, one file per storage type. A subclass adds the
-    headers that declare its storage type in storage_headers.
-    """
-
-    def storage_headers(self):
-        """Returns the headers that declare this partition's storage types; empty when the Vulkan headers declare
-        them.
-        """
-        return ()
-
-    def add_part_headers(self, begin_end):
-        begin_end.specific_headers.extend((
-            'generated/generated_vulkan_schema_fields.h',
-            'util/defines.h',
-            'schema/field.h',
-        ))
-
-        begin_end.specific_headers.extend(self.storage_headers())
-
-        begin_end.specific_headers.sort()
-
-        begin_end.pre_namespace_code.extend((
-            '// The MemberPointer specializations for this storage kind: schema::Get and Set for every member, and GetRef for',
-            '// every addressable one. These headers are large; include them only from code that reads members through a',
-            '// Field, the Actions and the schema tests, never from a header other targets include.',
-            '',
-        ))
-
-
-class VulkanSchemaApiStructMembersGeneratorOptions(
-    VulkanSchemaMemberPartitionGeneratorOptions
-):
-    """Holds the options for generated_vulkan_schema_api_struct_members.h, keyed on the API structures."""
-
-
-class VulkanSchemaDecodedStructMembersGeneratorOptions(
-    VulkanSchemaMemberPartitionGeneratorOptions
-):
-    """Holds the options for generated_vulkan_schema_decoded_struct_members.h, keyed on the Decoded_ wrappers."""
-
-    def storage_headers(self):
-        return ('generated/generated_vulkan_struct_decoders.h', )
-
-
-class VulkanSchemaDecodedCommandMembersGeneratorOptions(
-    VulkanSchemaMemberPartitionGeneratorOptions
-):
-    """Holds the options for generated_vulkan_schema_decoded_command_members.h: the MemberPointer specializations
-    keyed on the decode::args structures. The args namespace is split across two headers: decode/vulkan_decoder_args.h
-    declares the six hand-written args structures (blacklists.json functions-all and functions-decoder),
-    generated_vulkan_decoder_args.h the rest.
-    """
-
-    def storage_headers(self):
-        return ('decode/vulkan_decoder_args.h', 'generated/generated_vulkan_decoder_args.h')
 
 
 class VulkanSchemaEnumerantsGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
@@ -510,8 +448,8 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         self.schema_unions = list(self.all_union_members)
 
         # The structures with a generated Decoded_ wrapper: all but blacklists.json structures and platform structures.
-        # Only a generated wrapper is relied on to hold its API element and to declare the members the decoded-struct
-        # partition maps; a hand-written one is not.
+        # Only a generated wrapper is relied on to hold its API element and to declare each member under its Field's
+        # name; a hand-written one is not.
         self.wrapper_structs = list(self.get_all_filtered_struct_names())
 
         # Every decodable structure gets the HAS_DECODED_TYPE inventory property, hand-written decoder or not, so
@@ -672,16 +610,16 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         return 'api_elements::{}'.format(name)
 
     def get_generic_handles(self, members):
-        """Maps member name to selector name for the integer members vk.xml marks objecttype: the attribute holds the
-        sibling whose value gives the handle's type. The registry states it for every such member, so no table is
-        read."""
+        """Maps member name to object type member name for the integer members vk.xml marks objecttype: the attribute
+        holds the sibling whose value gives the handle's type. The registry states it for every such member, so no
+        table is read."""
         generic = dict()
 
         for value in members:
-            selector = getattr(value, 'objecttype', None)
+            objecttype = getattr(value, 'objecttype', None)
 
-            if selector and any(member.name == selector for member in members):
-                generic[value.name] = selector
+            if objecttype and any(member.name == objecttype for member in members):
+                generic[value.name] = objecttype
 
         return generic
 
@@ -967,7 +905,7 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         The registry writes a computed length as C text in altlen: `codeSize / 4`, `(rasterizationSamples + 31) / 32`,
         `2*VK_UUID_SIZE`. The grammar is integers, sibling names, API constants, +, *, / and parentheses, and nothing
-        else; a length outside it stays as length_expression text. Each node is ('number', text), ('sibling', name),
+        else; a length outside it stays as source_length_expression text. Each node is ('number', text), ('sibling', name),
         ('constant', name) or (op, left, right) with op one of '+', '*', '/'.
         """
         import re
@@ -1075,7 +1013,7 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         count_member = self.get_count_member(value, members)
 
         if count_member:
-            return 'StoragePtrValue<{}, {}>'.format(*count_member)
+            return 'StorageValue<Deref<FieldValue<{}>>, {}>'.format(*count_member)
 
         tree = self.parse_count_expression(value, members)
 
@@ -1098,14 +1036,16 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         return [part.strip() for part in value.array_capacity.split(',')]
 
     def make_field_definition(self, value, members, generic_handles, owner):
-        """Returns one Field definition: its name and its declaration, plus selector_field, selections,
-        has_extensions and length_expression where they apply. It restates no type fact the declaration carries."""
+        """Returns one Field definition: its name and its declaration, plus selector_field, objecttype_field,
+        selections, semantics, source_length_expression and bit_width where they apply, and its accessor. It restates
+        no type fact the declaration carries."""
         shape = self.get_field_shape(value)
-        generic_selector = generic_handles.get(value.name)
 
-        # selector_field is the sibling whose value chooses what this field holds: the registry's objecttype on an
-        # integer member that holds a handle, or its selector on a union-typed member.
-        selector = generic_selector if generic_selector is not None else self.member_selectors.get((owner, value.name))
+        # selector_field is the registry's selector on a union-typed member: the sibling whose value chooses the
+        # union alternative. objecttype_field is the registry's objecttype on an integer member that holds a handle:
+        # the sibling that holds the handle's object type.
+        selector = self.member_selectors.get((owner, value.name))
+        objecttype = generic_handles.get(value.name)
 
         # get_field_element_name reads the platform typedef first: value.base_type holds the substituted type, e.g.
         # void for HANDLE.
@@ -1114,11 +1054,14 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         length = self.get_field_length(value, members)
         declaration = self.make_declaration(value, api_element, shape, length, self.is_null_terminated(owner, value))
 
-        # Facts the declarator does not spell stay as members of the derived struct.
+        # Facts the declarator does not spell are members of the derived struct.
         parts = []
 
         if selector is not None:
             parts.append('using selector_field = {};'.format(selector))
+
+        if objecttype is not None:
+            parts.append('using objecttype_field = {};'.format(objecttype))
 
         # A union alternative lists the selector values that choose it, in the registry's selection order.
         selections = self.member_selections.get((owner, value.name))
@@ -1127,25 +1070,51 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
             parts.append('static constexpr auto selections = std::array{{ {} }};'.format(', '.join(selections)))
 
         if shape == 'ExtensionChain':
-            # has_extensions is true when vk.xml lists the owner on either side of a structextends. The base generator
-            # calls the complement after the spec's usual consequence, "pNext must be NULL"; the schema records the
-            # vk.xml fact, which the spec text does not always match: no structextends lists VkPipelineCreateInfoKHR,
-            # so it gets false, but the spec requires a pNext node.
-            parts.append(
-                'static constexpr bool has_extensions = {};'.format(
-                    'false' if self.must_extended_struct_be_null(owner) else 'true'
-                )
-            )
+            # ValidExtensions: vk.xml connects the owner to another structure with structextends. Another structure's
+            # structextends lists the owner (VkBufferMemoryBarrier), or the owner's own lists another
+            # (VkMemoryBarrier2). The source is registry.validextensionstructs, read by must_extended_struct_be_null.
+            # It is the registry's fact, not the spec's: no structextends lists VkPipelineCreateInfoKHR, so it gets no
+            # token, but the spec requires a structure in its pNext.
+            tokens = ['semantic::ExtensionChain']
+            if not self.must_extended_struct_be_null(owner):
+                tokens.append('semantic::ValidExtensions')
+            parts.append('using semantics = util::TypeList<{}>;'.format(', '.join(tokens)))
 
+        # The registry's len text is kept only where the schema's length does not carry its meaning.
         if not length and value.array_length and shape == 'Array':
             parts.append(
-                'static constexpr std::string_view length_expression = "{}";'.
+                'static constexpr std::string_view source_length_expression = "{}";'.
                 format(value.array_length)
             )
 
-        return 'struct {} : Field<"{}", {}> {{{}}};'.format(
-            value.name, value.name, declaration, ' ' + ' '.join(parts) + ' ' if parts else ''
-        )
+        parts.extend(self.make_field_accessor(value.name, value.bitfield_width))
+
+        return self.make_field_struct(value.name, declaration, parts)
+
+    def make_field_accessor(self, name, bitfield_width=None):
+        """Returns the member lines that read the Field's member from any storage type that spells it by the Field's
+        name: GetRef, or bit_width with Get and Set for a bitfield, whose width is the registry's `: N`. The trailing
+        return type makes a storage type without the member a substitution failure, which StorageFor reads."""
+        if bitfield_width:
+            return [
+                'using bit_width = std::integral_constant<size_t, {}>;'.format(bitfield_width.replace(':', '').strip()),
+                'template <typename Storage> static auto Get(const Storage& storage) -> decltype(storage.{0}) '
+                '{{ return storage.{0}; }}'.format(name),
+                'template <typename Storage> static void Set(Storage& storage, decltype(storage.{0}) value) '
+                '{{ storage.{0} = value; }}'.format(name),
+            ]
+
+        return [
+            'template <typename Storage> static auto GetRef(Storage& storage) -> decltype((storage.{0})) '
+            '{{ return (storage.{0}); }}'.format(name)
+        ]
+
+    def make_field_struct(self, name, declaration, parts):
+        """Returns the Field struct, one member per line."""
+        lines = ['struct {} : Field<"{}", {}>'.format(name, name, declaration), '{']
+        lines.extend('    ' + part for part in parts)
+        lines.append('};')
+        return '\n'.join(lines)
 
     def make_declaration(self, value, api_element, shape, length, null_terminated):
         """Returns the declaration of one field use: the API element, or Const, Pointer, Array or FixedArray over
@@ -1153,8 +1122,9 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         its replaceWith, so each level's const lands where the header wrote it and a typedef's hidden star is a level.
         A string's innermost level takes the NullTerminated length."""
         if shape == 'ExtensionChain':
-            # ExtensionChain resolves unqualified here: the Field is emitted inside the schema namespace.
-            element = 'ExtensionChain'
+            # C declares the chain pointer void*, or the base structure's own type in the two base structures; the
+            # schema declares Void for both, and the ExtensionChain token states what the pointer holds.
+            element = self.get_api_element_reference('Void')
         else:
             element = api_element
 
@@ -1196,11 +1166,17 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
     def make_return_field_definition(self, return_type):
         """Returns the command's Return Field definition. Every command has one; a void command's Return Field
-        holds the Void API element."""
-        return 'struct {} : Field<"{}", {}> {{ static constexpr bool is_return = true; }};'.format(
+        holds the Void API element and has no accessor, since no storage type has a member for it."""
+        cleaned = self.clean_return_type(return_type)
+        parts = ['static constexpr bool is_return = true;']
+
+        if cleaned != 'void':
+            parts.extend(self.make_field_accessor(self.RETURN_FIELD_NAME))
+
+        return self.make_field_struct(
             self.RETURN_FIELD_NAME,
-            self.RETURN_FIELD_NAME,
-            self.get_api_element_reference(self.get_api_element_name(self.clean_return_type(return_type))),
+            self.get_api_element_reference(self.get_api_element_name(cleaned)),
+            parts,
         )
 
     def write_field_namespace(self, element, members, owner, is_command, return_type=None):
@@ -1211,9 +1187,9 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         generic_handles = self.get_generic_handles(members)
 
-        # A length or selector_field refers to a sibling Field, and vk.xml always declares that sibling before the
-        # member that refers to it, so Fields are written in member order with no forward declarations. A sibling
-        # referred to before its declaration fails to compile at that line.
+        # A length, selector_field or objecttype_field refers to a sibling Field, and vk.xml always declares that
+        # sibling before the member that refers to it, so Fields are written in member order with no forward
+        # declarations. A sibling referred to before its declaration fails to compile at that line.
         for value in members:
             note = self.get_count_note(value, members)
             if note:
@@ -1327,10 +1303,9 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         # Each API element derives from its category's base in schema/api_element.h, which supplies the members the
         # category carries. A registry basetype adds source_category and a deref_ element source_type, the facts the
-        # schema replaced. The table and API element template arguments are qualified from the global namespace:
-        # inside an ApiElementEnum, an unqualified enumerants:: resolves to the inherited enumerants member.
+        # schema replaced. A C type is spelled from the global namespace, ::VkFormat: inside namespace api_elements
+        # the bare name is the API element.
         bitvalues = self.get_bitvalues_of_bitmasks()
-        elements = '::gfxrecon::schema::vulkan::api_elements::'
         for name in sorted(self.api_type_categories):
             element = self.api_type_elements[name]
             # An API element carries the name of the type it describes; EmptyBitvalues and EmptyBitvalues64 describe none,
@@ -1346,13 +1321,13 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
                 else:
                     base = 'ApiElementStruct<{}>'.format(args)
             elif category == 'Enum':
-                base = 'ApiElementEnum<{}, ::gfxrecon::schema::vulkan::enumerants::{}>'.format(args, name)
+                base = 'ApiElementEnum<{}, enumerants::{}>'.format(args, name)
                 if name in self.bitmask_types or name in self.empty_bitvalues.values():
-                    body += ' static constexpr bool kBitvalues = true; '
+                    body += ' using semantics = util::TypeList<semantic::Bitvalues>; '
             elif category == 'Bitmask':
                 flags = self.flags_types[name]
                 bits = bitvalues.get(name, self.empty_bitvalues[flags])
-                base = 'ApiElementBitmask<{}, {}{}, {}{}>'.format(args, elements, flags, elements, bits)
+                base = 'ApiElementBitmask<{}, {}, {}>'.format(args, flags, bits)
             else:
                 assert category in ('Union', 'Handle', 'Funcpointer', 'Scalar', 'Void'), (name, category)
                 base = 'ApiElement{}<{}>'.format(category, args)
@@ -1477,7 +1452,7 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         write(
             '// Fields: one namespace per structure, union and command, holding one Field per member or\n'
             '// parameter, and a command\'s Return Field. A Field holds its declaration: its API element and the\n'
-            '// declarators over it.',
+            '// declarators over it, and the accessor that reads its member from a storage type.',
             file=self.outFile
         )
         write('GFXRECON_BEGIN_NAMESPACE(vulkan)', file=self.outFile)
@@ -1895,7 +1870,7 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         for name in sorted(self.api_type_categories):
             if 'source_category' in self.get_source_members(name):
                 write(
-                    'static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::{0}> || '
+                    'static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::{0}> || '
                     'schema::VoidApiElement<schema::vulkan::api_elements::{0}>);'.format(name),
                     file=self.outFile
                 )
@@ -2024,123 +1999,6 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
-
-    def write_member_partition_prologue(self, description):
-        write('// {}'.format(description), file=self.outFile)
-        write('GFXRECON_BEGIN_NAMESPACE(schema)', file=self.outFile)
-        self.newline()
-
-    def write_member_partition_epilogue(self):
-        self.newline()
-        write('GFXRECON_END_NAMESPACE(schema)', file=self.outFile)
-
-    def make_member_pointer(self, storage, field, member_expression):
-        return (
-            'template <> struct MemberPointer<{storage}, {field}> '
-            '{{ static constexpr auto value = &{member}; }};'.format(
-                storage=storage, field=field, member=member_expression
-            )
-        )
-
-    def make_bitfield_member_pointer(self, storage, field, member_name, value_type):
-        """Returns the MemberPointer specialization for a bitfield member, which has no pointer to member: it derives
-        from NonAddressableMember, whose value marks it, and supplies static Get and Set."""
-        return (
-            'template <> struct MemberPointer<{storage}, {field}> : NonAddressableMember '
-            '{{ static {type} Get(const {storage}& storage) {{ return storage.{member}; }} '
-            'static void Set({storage}& storage, {type} value) {{ storage.{member} = value; }} }};'.format(
-                storage=storage, field=field, member=member_name, type=value_type
-            )
-        )
-
-    def write_api_struct_members(self):
-        self.write_member_partition_prologue(
-            'Member traits for API structure storage.'
-        )
-
-        for struct in self.schema_structs + self.schema_unions:
-            storage = '::{}'.format(struct)
-
-            for value in self.all_struct_members.get(struct, self.all_union_members.get(struct)):
-                field = self.get_field_path(struct, value.name)
-
-                if value.bitfield_width:
-                    write(
-                        self.make_bitfield_member_pointer(
-                            storage, field, value.name, value.base_type
-                        ),
-                        file=self.outFile
-                    )
-                else:
-                    write(
-                        self.make_member_pointer(
-                            storage, field,
-                            '{}::{}'.format(storage, value.name)
-                        ),
-                        file=self.outFile
-                    )
-
-        self.write_member_partition_epilogue()
-
-    def write_decoded_struct_members(self):
-        self.write_member_partition_prologue(
-            'Member traits for decoded structure storage.'
-        )
-
-        for struct in self.wrapper_structs:
-            storage = 'decode::Decoded_{}'.format(struct)
-
-            for value in self.all_struct_members[struct]:
-                # A decoded wrapper holds a member only for a field that decode has to expand. A plain scalar stays in
-                # the wrapped API structure, so it has no mapping in this population.
-                if not self.is_extended_struct_definition(
-                    value
-                ) and not KhronosStructDecodersHeaderGenerator.needs_member_declaration(
-                    self, struct, value
-                ):
-                    continue
-
-                write(
-                    self.make_member_pointer(
-                        storage, self.get_field_path(struct, value.name),
-                        '{}::{}'.format(storage, value.name)
-                    ),
-                    file=self.outFile
-                )
-
-        self.write_member_partition_epilogue()
-
-    def write_decoded_command_members(self):
-        self.write_member_partition_prologue(
-            'Member traits for decoded command-wrapper storage.'
-        )
-
-        for command in self.schema_commands:
-            return_type, _, params = self.all_cmd_params[command]
-            api_element = self.get_command_api_element_name(command)
-            storage = 'decode::args::{}'.format(api_element)
-
-            for value in params:
-                write(
-                    self.make_member_pointer(
-                        storage, self.get_field_path(api_element, value.name),
-                        '{}::{}'.format(storage, value.name)
-                    ),
-                    file=self.outFile
-                )
-
-            # A void Return Field has no storage member, so it has no mapping.
-            if self.clean_return_type(return_type) != 'void':
-                write(
-                    self.make_member_pointer(
-                        storage,
-                        self.get_field_path(api_element, self.RETURN_FIELD_NAME),
-                        '{}::{}'.format(storage, self.RETURN_FIELD_NAME)
-                    ),
-                    file=self.outFile
-                )
-
-        self.write_member_partition_epilogue()
 
 
 class VulkanSchemaTypesGenerator(VulkanSchemaBaseGenerator):
@@ -2276,30 +2134,6 @@ class VulkanInventoryGenerator(VulkanSchemaBaseGenerator):
 
     def write_part(self):
         self.write_inventory()
-
-
-class VulkanSchemaApiStructMembersGenerator(VulkanSchemaBaseGenerator):
-    """Generates generated_vulkan_schema_api_struct_members.h: the MemberPointer
-    specializations keyed on the API structures."""
-
-    def write_part(self):
-        self.write_api_struct_members()
-
-
-class VulkanSchemaDecodedStructMembersGenerator(VulkanSchemaBaseGenerator):
-    """Generates generated_vulkan_schema_decoded_struct_members.h: the MemberPointer specializations keyed on
-    the Decoded_ wrappers."""
-
-    def write_part(self):
-        self.write_decoded_struct_members()
-
-
-class VulkanSchemaDecodedCommandMembersGenerator(VulkanSchemaBaseGenerator):
-    """Generates generated_vulkan_schema_decoded_command_members.h: the MemberPointer specializations keyed on
-    the decode::args structures."""
-
-    def write_part(self):
-        self.write_decoded_command_members()
 
 
 class VulkanSchemaChecksGenerator(VulkanSchemaBaseGenerator):

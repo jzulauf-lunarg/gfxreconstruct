@@ -20,21 +20,18 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-// DecodeStructAction: the Apply overload set schema::WalkFields applies to a Decoded_ wrapper's schema. If no overload
-// accepts a Field, a static_assert in WalkFields stops the compile and shows the Field.
+// DecodeStructAction: the schema::WalkFields Action that decodes a Decoded_ wrapper. Caller: DecodeStruct.
 //
-// A scalar or identifier decodes as binding::WireTypeOf of its API element, so a new width is a WireTypeOf
-// specialization, not a new Decode method.
+// One Apply per declaration shape: value, pointer, array, fixed array. Each Apply branches once on the category of the
+// Field's API element. A scalar, enum, bitmask or identifier decodes as binding::WireTypeOf of its API element, so a
+// new width is a WireTypeOf specialization, not a new Decode method.
 //
-// Limitations: a pointer to a pointer, a Pointer or PointerArray of handles, and a run of function-pointer API
-// elements have no overload.
+// Limitations: a pointer to a pointer, a Pointer or an Array of pointers to handles, and a run of function-pointer
+// API elements fail a static_assert in their Apply.
 //
 // Lifetime: one instance walks one structure; it carries the read cursor, and BytesRead() returns the bytes consumed.
 // The decoders and nested wrappers it allocates come from DecodeAllocator, so the walk must run between
 // DecodeAllocator::Begin() and End().
-//
-// Typical pattern (decode/vulkan_decode_struct_impl.h), after DecodeStructAction action(buffer, buffer_size):
-//   schema::WalkFields<typename Wrapper::api_element>(action, *wrapper);
 
 #ifndef GFXRECON_DECODE_VULKAN_DECODE_ACTION_H
 #define GFXRECON_DECODE_VULKAN_DECODE_ACTION_H
@@ -48,9 +45,8 @@
 #include "schema/schema.h"
 #include "util/defines.h"
 
-// Required by the Addressable and StorageFor constraints below.
-#include "generated/generated_vulkan_schema_api_struct_members.h"
-#include "generated/generated_vulkan_schema_decoded_struct_members.h"
+// The Decoded_ wrappers the Apply set reads members of.
+#include "generated/generated_vulkan_struct_decoders.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -66,281 +62,256 @@ class DecodeStructAction
 
     size_t BytesRead() const { return bytes_read_; }
 
-    // Decodes a scalar value into a local and writes it through schema::Set, not in place: a bitfield member has no
-    // address ([class.bit]/3), and Set reaches its generated accessor. A bitfield is recorded as a whole value of its
-    // API element's type -- a one-bit flag is four bytes -- and narrowed on the write.
-    template <typename Field, typename Storage>
-    requires schema::ScalarValueField<Field> && schema::StorageFor<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
+    // Decodes a value. Storage is the Decoded_ wrapper: it holds a member for a structure or an identifier, and the
+    // API structure it wraps, the decoded value, holds every member.
+    template <typename Storage, typename Field>
+    requires schema::ValueField<Field> && schema::StorageFor<typename Storage::struct_type, Field>
+    void Apply(Storage& storage, Field field)
     {
-        schema::ApiTypeOf_t<typename Field::api_element> value{};
+        using Element = typename Field::api_element;
 
-        bytes_read_ +=
-            ValueDecoder::DecodeAs<binding::WireTypeOf_t<typename Field::api_element>>(Cursor(), Remaining(), &value);
-
-        schema::Set(DecodedValueRef(storage), field, value);
-    }
-
-    // Decodes a generic handle, a uint64_t member the registry marks objecttype, into the wrapper's uint64_t member
-    // and sets the decoded value's member to Member{}, 0. The selector's presence is what makes the member a handle;
-    // its value is read by replay, which maps the id through MapStructHandles by the object type it holds.
-    template <typename Field, typename Storage>
-    requires schema::ScalarValueField<Field> && schema::FieldWithSelector<Field> &&
-        schema::StorageFor<typename Storage::struct_type, Field> && schema::Addressable<Storage, Field> &&
-        schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        using Member = std::remove_cvref_t<decltype(schema::GetRef(DecodedValueRef(storage), field))>;
-
-        bytes_read_ += ValueDecoder::DecodeAs<binding::WireTypeOf_t<typename Field::api_element>>(
-            Cursor(), Remaining(), &schema::GetRef(storage, field));
-
-        schema::Set(DecodedValueRef(storage), field, Member{});
-    }
-
-    // Decodes a Pointer, Array or PointerArray of scalars into the wrapper's PointerDecoder, and points the decoded
-    // value's member at its storage. The decoder reads the length from the wire, so one element is a run of one; the
-    // count member decodes as its own Field, and nothing here reads across Fields.
-    template <typename Field, typename Storage>
-    requires schema::ScalarApiElement<typename Field::api_element> && schema::AnyPointerField<Field> &&
-        (!schema::NullTerminatedField<Field>)&&(!schema::NullTerminatedArrayField<Field>)&&schema::Addressable<
-            Storage,
-            Field>&& schema::Addressable<typename Storage::struct_type, Field> void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-
-        bytes_read_ +=
-            field_ref.template DecodeAs<binding::WireTypeOf_t<typename Field::api_element>>(Cursor(), Remaining());
-
-        schema::Set(DecodedValueRef(storage), field, field_ref.GetPointer());
-    }
-
-    // Decodes an identifier held by value -- a handle or a function pointer -- into the wrapper member, and sets the
-    // decoded value's member to Member{}, the null of its declared type: VK_NULL_HANDLE for a handle, pointer or
-    // integer by build; nullptr for a function pointer. Replay maps a handle member through MapStructHandles; nothing
-    // restores an address.
-    template <typename Field, typename Storage>
-    requires schema::IdentifierApiElement<typename Field::api_element> && schema::ValueField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        using Member = std::remove_cvref_t<decltype(schema::GetRef(DecodedValueRef(storage), field))>;
-
-        bytes_read_ += ValueDecoder::DecodeAs<binding::WireTypeOf_t<typename Field::api_element>>(
-            Cursor(), Remaining(), &schema::GetRef(storage, field));
-
-        schema::Set(DecodedValueRef(storage), field, Member{});
-    }
-
-    // Reads a pointer to void, Pointer<Void>, or to a platform type curation leaves undefined, Pointer<ANativeWindow>,
-    // Pointer<deref_HWND>, as its address into the wrapper's uint64_t member, and sets the decoded value's pointer to
-    // null, Member{}.
-    template <typename Field, typename Storage>
-    requires schema::VoidApiElement<typename Field::api_element> && schema::PointerField<Field> &&
-        (!schema::PointerToPointerField<Field>)&&schema::Addressable<Storage, Field>&& schema::
-            Addressable<typename Storage::struct_type, Field> void Apply(Field field, Storage& storage)
-    {
-        using Member = std::remove_cvref_t<decltype(schema::GetRef(DecodedValueRef(storage), field))>;
-
-        bytes_read_ += ValueDecoder::DecodeAddress(Cursor(), Remaining(), &schema::GetRef(storage, field));
-
-        schema::Set(DecodedValueRef(storage), field, Member{});
-    }
-
-    template <typename Field, typename Storage>
-    requires schema::VoidApiElement<typename Field::api_element> && schema::ArrayField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-
-        bytes_read_ += field_ref.DecodeUInt8(Cursor(), Remaining());
-
-        schema::Set(DecodedValueRef(storage), field, field_ref.GetPointer());
-    }
-
-    // Decodes a run of handles into the wrapper's HandlePointerDecoder and sets the decoded value's pointer to null:
-    // the decoder holds capture ids, and replay's MapStructHandles points the member at the handles it maps them to.
-    // HandlePointerDecoder::Decode always reads format::HandleEncodeType, so no wire type is passed.
-    template <typename Field, typename Storage>
-    requires schema::HandleApiElement<typename Field::api_element> && schema::ArrayField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        bytes_read_ += schema::GetRef(storage, field).Decode(Cursor(), Remaining());
-
-        schema::Set(DecodedValueRef(storage), field, nullptr);
-    }
-
-    // Decodes one string, Array<Const<Char>, NullTerminated>, or a run of strings into the wrapper's StringDecoder,
-    // WStringDecoder or StringArrayDecoder, and points the decoded value's member at its storage. Each decoder reads
-    // its own length and fixes its encode type by template argument, so no wire type is passed.
-    template <typename Field, typename Storage>
-    requires((schema::NullTerminatedField<Field> && schema::ArrayField<Field>) ||
-             schema::NullTerminatedArrayField<Field>) &&
-        schema::Addressable<Storage, Field>&& schema::Addressable<typename Storage::struct_type, Field> void Apply(
-            Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-
-        bytes_read_ += field_ref.Decode(Cursor(), Remaining());
-
-        schema::Set(DecodedValueRef(storage), field, field_ref.GetPointer());
-    }
-
-    // Decodes a fixed-extent string in place: SetExternalMemory points the decoder at the decoded value's array, so
-    // nothing is assigned afterwards.
-    template <typename Field, typename Storage>
-    requires schema::NullTerminatedField<Field> && schema::FixedArrayField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-        auto& array_ref = schema::GetRef(DecodedValueRef(storage), field);
-        using ArrayType = std::remove_cvref_t<decltype(array_ref)>;
-
-        static_assert(std::is_array_v<ArrayType>,
-                      "A FixedArray field must be declared as an array in the API type it belongs to");
-        static_assert(schema::DeclaredExtentsMatch_v<ArrayType, Field>,
-                      "A FixedArray field's recorded extents must equal the extents the API type declares");
-        static_assert(std::rank_v<ArrayType> == 1, "A fixed-extent string is one dimensional");
-
-        field_ref.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
-
-        bytes_read_ += field_ref.Decode(Cursor(), Remaining());
-    }
-
-    // Decodes an embedded structure: allocates the Decoded_ wrapper the member points at, links its decoded_value to
-    // the decoded value's inline member, and calls DecodeStruct. A schema-driven type reaches the DecodeStruct template
-    // and walks its own Fields; a union or a CUSTOM_DECODE type reaches its hand-written overload. The wrapper type is
-    // the member's declared type, so no decoded-type binding is read.
-    template <typename Field, typename Storage>
-    requires schema::StructApiElement<typename Field::api_element> && schema::ValueField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-        using Nested    = std::remove_pointer_t<std::remove_cvref_t<decltype(field_ref)>>;
-
-        field_ref                = DecodeAllocator::Allocate<Nested>();
-        field_ref->decoded_value = &schema::GetRef(DecodedValueRef(storage), field);
-
-        bytes_read_ += DecodeStruct(Cursor(), Remaining(), field_ref);
-    }
-
-    // Decodes a fixed-extent scalar array in place: SetExternalMemory points the decoder at the decoded value's array,
-    // so nothing is assigned afterwards. The extents come from the API member's declared type, the one the compiler
-    // laid the storage out from; the static_asserts hold the Field's recorded extents equal to them.
-    template <typename Field, typename Storage>
-    requires schema::ScalarApiElement<typename Field::api_element> && schema::FixedArrayField<Field> &&
-        (!schema::NullTerminatedField<Field>)&&schema::Addressable<Storage, Field>&& schema::
-            Addressable<typename Storage::struct_type, Field> void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-        auto& array_ref = schema::GetRef(DecodedValueRef(storage), field);
-        using ArrayType = std::remove_cvref_t<decltype(array_ref)>;
-
-        static_assert(std::is_array_v<ArrayType>,
-                      "A FixedArray field must be declared as an array in the API type it belongs to");
-        static_assert(schema::DeclaredExtentsMatch_v<ArrayType, Field>,
-                      "A FixedArray field's recorded extents must equal the extents the API type declares");
-
-        // The bound is PointerDecoder's, not the registry's: SetExternalMemory has one- and two-dimension overloads
-        // only. A higher rank fails here, with this message, instead of as an unviable call.
-        static_assert(std::rank_v<ArrayType> <= 2,
-                      "PointerDecoder::SetExternalMemory covers one and two dimensions only");
-
-        if constexpr (std::rank_v<ArrayType> == 2)
+        if constexpr (schema::StructOrUnionApiElement<Element>)
         {
-            field_ref.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>, std::extent_v<ArrayType, 1>);
+            // An embedded structure: allocates the Decoded_ wrapper the member points at, links its decoded_value to
+            // the decoded value's inline member, and calls DecodeStruct. A schema-driven type reaches the DecodeStruct
+            // template and walks its own Fields; a union or a CUSTOM_DECODE type reaches its hand-written overload.
+            // The wrapper type is the member's declared type, so no decoded-type binding is read.
+            using DecodeWrapper     = std::remove_pointer_t<schema::StoredTypeOf_t<Storage, Field>>;
+            DecodeWrapper*& wrapper = Field::GetRef(storage);
+
+            wrapper                = DecodeAllocator::Allocate<DecodeWrapper>();
+            wrapper->decoded_value = &Field::GetRef(DecodedValueRef(storage));
+
+            bytes_read_ += DecodeStruct(Cursor(), Remaining(), wrapper);
+        }
+        else if constexpr (schema::IdentifierApiElement<Element> || schema::FieldWithObjectType<Field>)
+        {
+            // An identifier: a handle, a function pointer, or a generic handle, a uint64_t member the registry marks
+            // objecttype. Its capture id or address goes to the wrapper member, and the decoded value's member is set
+            // to ValueType{}, the null of its declared type: VK_NULL_HANDLE for a handle, pointer or integer by build;
+            // nullptr for a function pointer; 0 for a generic handle. Replay maps a handle member through
+            // MapStructHandles, a generic handle by the object type its objecttype_field holds; nothing restores an
+            // address.
+            using ValueType = schema::StoredTypeOf_t<typename Storage::struct_type, Field>;
+
+            bytes_read_ +=
+                ValueDecoder::DecodeAs<binding::WireTypeOf_t<Element>>(Cursor(), Remaining(), &Field::GetRef(storage));
+
+            Field::GetRef(DecodedValueRef(storage)) = ValueType{};
         }
         else
         {
-            field_ref.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
+            // A scalar decodes into a local and is written through schema::Set, not in place: a bitfield member has no
+            // address ([class.bit]/3), and Set reaches the Field's Set. A bitfield is recorded as a whole value of its
+            // API element's type -- a one-bit flag is four bytes -- and narrowed on the write.
+            static_assert(schema::SimpleApiElement<Element>, "No decoder call for a value of this category");
+            schema::ApiTypeOf_t<Element> value{};
+
+            bytes_read_ += ValueDecoder::DecodeAs<binding::WireTypeOf_t<Element>>(Cursor(), Remaining(), &value);
+
+            schema::Set(DecodedValueRef(storage), field, value);
         }
-
-        bytes_read_ +=
-            field_ref.template DecodeAs<binding::WireTypeOf_t<typename Field::api_element>>(Cursor(), Remaining());
     }
 
-    // Decodes a Pointer, Array or PointerArray of structures: allocates the wrapper's StructPointerDecoder, which reads
-    // its own length from the wire (one element is a run of one) and decodes each element with DecodeStruct, and
-    // points the decoded value's member at its storage. The wrapper declares every StructPointerDecoder member as a
-    // pointer and every other decoder member by value, so the shape and category settle which form this writes; a
-    // wrapper that broke that rule would fail to compile here.
-    template <typename Field, typename Storage>
-    requires schema::StructApiElement<typename Field::api_element> && schema::AnyPointerField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
+    // Decodes a pointer to one item, or an extension chain, into the wrapper's member, and settles the decoded
+    // value's member. A decoder reads the length from the capture, so one item is a run of one.
+    template <typename Storage, typename Field>
+    requires schema::PointerField<Field> && schema::StorageFor<Storage, Field>
+    void Apply(Storage& storage, Field)
     {
-        auto& field_ref = schema::GetRef(storage, field);
-        using Decoder   = std::remove_pointer_t<std::remove_cvref_t<decltype(field_ref)>>;
+        using Element   = typename Field::api_element;
+        auto& value_ref = Field::GetRef(DecodedValueRef(storage));
 
-        field_ref = DecodeAllocator::Allocate<Decoder>();
+        if constexpr (schema::ExtensionChainField<Field>)
+        {
+            // The extension chain. NOTE: MUST be tested before the Void branch: pNext is declared
+            // Pointer<Const<Void>>, and the Void branch would read it as an address. DecodePNextStruct selects each
+            // node's type by its sType at run time.
+            PNextNode*& pnext = Field::GetRef(storage);
 
-        bytes_read_ += field_ref->Decode(Cursor(), Remaining());
+            bytes_read_ += DecodePNextStruct(Cursor(), Remaining(), &pnext);
 
-        schema::Set(DecodedValueRef(storage), field, field_ref->GetPointer());
+            value_ref = pnext ? pnext->GetPointer() : nullptr;
+        }
+        else if constexpr (schema::StructOrUnionApiElement<Element>)
+        {
+            // Allocates the wrapper's StructPointerDecoder, which decodes the structure with DecodeStruct. The wrapper
+            // declares every StructPointerDecoder member as a pointer and every other decoder member by value; a
+            // wrapper that broke that rule would fail to compile here.
+            using StructDecoder     = std::remove_pointer_t<schema::StoredTypeOf_t<Storage, Field>>;
+            StructDecoder*& decoder = Field::GetRef(storage);
+
+            decoder = DecodeAllocator::Allocate<StructDecoder>();
+
+            bytes_read_ += decoder->Decode(Cursor(), Remaining());
+
+            value_ref = decoder->GetPointer();
+        }
+        else if constexpr (schema::VoidApiElement<Element>)
+        {
+            // A pointer to void, Pointer<Void>, or to a platform type curation leaves undefined,
+            // Pointer<ANativeWindow>, Pointer<deref_HWND>: its address goes to the wrapper's uint64_t member, and the
+            // decoded value's pointer is null.
+            static_assert(!schema::PointerToPointerField<Field>, "No decoder call for a pointer to a pointer");
+
+            uint64_t& address = Field::GetRef(storage);
+
+            bytes_read_ += ValueDecoder::DecodeAddress(Cursor(), Remaining(), &address);
+
+            value_ref = nullptr;
+        }
+        else
+        {
+            static_assert(schema::SimpleApiElement<Element>, "No decoder call for a pointer to this category");
+
+            auto& decoder = Field::GetRef(storage);
+
+            bytes_read_ += decoder.template DecodeAs<binding::WireTypeOf_t<Element>>(Cursor(), Remaining());
+
+            value_ref = decoder.GetPointer();
+        }
     }
 
-    // Decodes a fixed-extent array of structures in place: allocates the StructPointerDecoder as for any run of
-    // structures, then SetExternalMemory points it at the decoded value's array, so nothing is assigned afterwards.
-    template <typename Field, typename Storage>
-    requires schema::StructApiElement<typename Field::api_element> && schema::FixedArrayField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
+    // Decodes an Array into the wrapper's decoder member, and settles the decoded value's member. The decoder reads
+    // the length from the capture; the count member decodes as its own Field, and nothing here reads across Fields.
+    template <typename Storage, typename Field>
+    requires schema::ArrayField<Field> && schema::StorageFor<Storage, Field>
+    void Apply(Storage& storage, Field)
     {
-        auto& field_ref = schema::GetRef(storage, field);
-        auto& array_ref = schema::GetRef(DecodedValueRef(storage), field);
-        using Decoder   = std::remove_pointer_t<std::remove_cvref_t<decltype(field_ref)>>;
-        using ArrayType = std::remove_cvref_t<decltype(array_ref)>;
+        using Element   = typename Field::api_element;
+        auto& value_ref = Field::GetRef(DecodedValueRef(storage));
+
+        if constexpr (schema::StructOrUnionApiElement<Element>)
+        {
+            // Allocates the wrapper's StructPointerDecoder, which decodes each element with DecodeStruct. The wrapper
+            // declares every StructPointerDecoder member as a pointer and every other decoder member by value; a
+            // wrapper that broke that rule would fail to compile here.
+            using StructDecoder     = std::remove_pointer_t<schema::StoredTypeOf_t<Storage, Field>>;
+            StructDecoder*& decoder = Field::GetRef(storage);
+
+            decoder = DecodeAllocator::Allocate<StructDecoder>();
+
+            bytes_read_ += decoder->Decode(Cursor(), Remaining());
+
+            value_ref = decoder->GetPointer();
+        }
+        else if constexpr (schema::HandleApiElement<Element>)
+        {
+            // A run of handles: the HandlePointerDecoder holds capture ids, and replay's MapStructHandles points the
+            // member at the handles it maps them to. HandlePointerDecoder::Decode always reads
+            // format::HandleEncodeType, so no wire type is passed.
+            static_assert(!schema::PointerArrayField<Field>, "No decoder call for an Array of pointers to handles");
+
+            auto& decoder = Field::GetRef(storage);
+
+            bytes_read_ += decoder.Decode(Cursor(), Remaining());
+
+            value_ref = nullptr;
+        }
+        else if constexpr (schema::VoidApiElement<Element>)
+        {
+            // An Array of Void is a run of bytes; its length is the byte count.
+            static_assert(!schema::PointerArrayField<Field>, "No decoder call for an Array of pointers to void");
+
+            auto& decoder = Field::GetRef(storage);
+
+            bytes_read_ += decoder.DecodeUInt8(Cursor(), Remaining());
+
+            value_ref = decoder.GetPointer();
+        }
+        else if constexpr (schema::StringField<Field> || schema::StringArrayField<Field>)
+        {
+            // One string, Array<Const<Char>, NullTerminated>, or a run of strings: the wrapper's StringDecoder,
+            // WStringDecoder or StringArrayDecoder reads its own length and fixes its encode type by template
+            // argument, so no wire type is passed.
+            auto& decoder = Field::GetRef(storage);
+
+            bytes_read_ += decoder.Decode(Cursor(), Remaining());
+
+            value_ref = decoder.GetPointer();
+        }
+        else
+        {
+            static_assert(schema::SimpleApiElement<Element>, "No decoder call for an Array of this category");
+
+            auto& decoder = Field::GetRef(storage);
+
+            bytes_read_ += decoder.template DecodeAs<binding::WireTypeOf_t<Element>>(Cursor(), Remaining());
+
+            value_ref = decoder.GetPointer();
+        }
+    }
+
+    // Decodes a fixed-extent array in place: SetExternalMemory points the decoder at the decoded value's array, so
+    // nothing is assigned afterwards. The extents come from the API member's declared type, the one the compiler laid
+    // the storage out from; the static_asserts hold the Field's recorded extents equal to them. A count member
+    // decodes before its array, and SetExpectedLength gives it to the decoder, which checks the encoded length
+    // against it.
+    template <typename Storage, typename Field>
+    requires schema::FixedArrayField<Field> && schema::StorageFor<Storage, Field>
+    void Apply(Storage& storage, Field)
+    {
+        using Element   = typename Field::api_element;
+        using ArrayType = schema::StoredTypeOf_t<typename Storage::struct_type, Field>;
+
+        ArrayType& array_ref = Field::GetRef(DecodedValueRef(storage));
 
         static_assert(std::is_array_v<ArrayType>,
                       "A FixedArray field must be declared as an array in the API type it belongs to");
         static_assert(schema::DeclaredExtentsMatch_v<ArrayType, Field>,
                       "A FixedArray field's recorded extents must equal the extents the API type declares");
-        static_assert(std::rank_v<ArrayType> == 1, "A fixed-extent array of structures is one dimensional");
 
-        field_ref = DecodeAllocator::Allocate<Decoder>();
-        field_ref->SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
+        if constexpr (schema::StructOrUnionApiElement<Element>)
+        {
+            // Allocates the StructPointerDecoder as for any run of structures.
+            static_assert(std::rank_v<ArrayType> == 1, "A fixed-extent array of structures is one dimensional");
+            using StructDecoder     = std::remove_pointer_t<schema::StoredTypeOf_t<Storage, Field>>;
+            StructDecoder*& decoder = Field::GetRef(storage);
 
-        bytes_read_ += field_ref->Decode(Cursor(), Remaining());
-    }
+            decoder = DecodeAllocator::Allocate<StructDecoder>();
+            decoder->SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
+            SetExpectedLength<Field>(storage, *decoder);
 
-    // Decodes a fixed-extent array of handles. The two calls do unrelated things: Decode reads the capture ids into
-    // the decoder's own storage, and SetExternalMemory does not redirect that; it makes the decoded value's array the
-    // destination for the handles replay maps those ids to. Nothing is written to the decoded value here.
-    // VkPhysicalDeviceGroupProperties::physicalDevices is the only field of this shape.
-    template <typename Field, typename Storage>
-    requires schema::HandleApiElement<typename Field::api_element> && schema::FixedArrayField<Field> &&
-        schema::Addressable<Storage, Field> && schema::Addressable<typename Storage::struct_type, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
-        auto& array_ref = schema::GetRef(DecodedValueRef(storage), field);
-        using ArrayType = std::remove_cvref_t<decltype(array_ref)>;
+            bytes_read_ += decoder->Decode(Cursor(), Remaining());
+        }
+        else if constexpr (schema::HandleApiElement<Element> || schema::StringField<Field>)
+        {
+            // A string decodes in place. For handles the two calls do unrelated things: Decode reads the capture ids
+            // into the decoder's own storage, and SetExternalMemory does not redirect that; it makes the decoded
+            // value's array the destination for the handles replay maps those ids to.
+            // VkPhysicalDeviceGroupProperties::physicalDevices is the only handle field of this shape.
+            static_assert(std::rank_v<ArrayType> == 1, "A fixed-extent string or array of handles is one dimensional");
 
-        static_assert(std::is_array_v<ArrayType>,
-                      "A FixedArray field must be declared as an array in the API type it belongs to");
-        static_assert(schema::DeclaredExtentsMatch_v<ArrayType, Field>,
-                      "A FixedArray field's recorded extents must equal the extents the API type declares");
-        static_assert(std::rank_v<ArrayType> == 1, "A fixed-extent array of handles is one dimensional");
+            auto& decoder = Field::GetRef(storage);
 
-        field_ref.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
+            decoder.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
+            SetExpectedLength<Field>(storage, decoder);
 
-        bytes_read_ += field_ref.Decode(Cursor(), Remaining());
-    }
+            bytes_read_ += decoder.Decode(Cursor(), Remaining());
+        }
+        else
+        {
+            static_assert(schema::SimpleApiElement<Element>, "No decoder call for a fixed array of this category");
 
-    // Decodes the extension chain with DecodePNextStruct, which selects each node's type by its sType at run time.
-    template <typename Field, typename Storage>
-    requires schema::ExtensionChainField<Field> && schema::Addressable<Storage, Field>
-    void Apply(Field field, Storage& storage)
-    {
-        auto& field_ref = schema::GetRef(storage, field);
+            // The bound is PointerDecoder's, not the registry's: SetExternalMemory has one- and two-dimension
+            // overloads only. A higher rank fails here, with this message, instead of as an unviable call.
+            static_assert(std::rank_v<ArrayType> <= 2,
+                          "PointerDecoder::SetExternalMemory covers one and two dimensions only");
 
-        bytes_read_ += DecodePNextStruct(Cursor(), Remaining(), &field_ref);
+            auto& decoder = Field::GetRef(storage);
 
-        schema::Set(DecodedValueRef(storage), field, field_ref ? field_ref->GetPointer() : nullptr);
+            if constexpr (std::rank_v<ArrayType> == 2)
+            {
+                decoder.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>, std::extent_v<ArrayType, 1>);
+            }
+            else
+            {
+                decoder.SetExternalMemory(array_ref, std::extent_v<ArrayType, 0>);
+                SetExpectedLength<Field>(storage, decoder);
+            }
+
+            bytes_read_ += decoder.template DecodeAs<binding::WireTypeOf_t<Element>>(Cursor(), Remaining());
+        }
     }
 
   private:
@@ -352,6 +323,17 @@ class DecodeStructAction
     static typename Storage::struct_type& DecodedValueRef(Storage& storage)
     {
         return *storage.decoded_value;
+    }
+
+    // Gives decoder the value of a fixed array's count member, which the walk decoded before the array. Does nothing
+    // for an array with no count member.
+    template <typename Field, typename Storage, typename Decoder>
+    static void SetExpectedLength(Storage& storage, Decoder& decoder)
+    {
+        if constexpr (schema::StorageWithLength<typename Storage::struct_type, Field>)
+        {
+            decoder.SetExpectedLength(static_cast<size_t>(schema::LengthOf_t<Field>::Get(DecodedValueRef(storage))));
+        }
     }
 
     const uint8_t* buffer_{ nullptr };

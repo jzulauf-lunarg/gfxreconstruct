@@ -38,7 +38,7 @@ GFXRECON_BEGIN_NAMESPACE(binding)
 
 // Undefined: an API element without a specialization is an incomplete type where WireTypeOf_t reads it.
 template <schema::ApiElement Element>
-requires schema::ScalarApiElement<Element> || schema::IdentifierApiElement<Element>
+requires schema::SimpleApiElement<Element> || schema::IdentifierApiElement<Element>
 struct WireTypeOf;
 
 template <schema::ApiElement Element>

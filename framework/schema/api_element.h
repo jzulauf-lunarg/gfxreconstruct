@@ -20,15 +20,16 @@
 ** DEALINGS IN THE SOFTWARE.
 */
 
-// An API element is the C++ type for one type of the API. It holds the registry name, the C type (element_type) and
-// the category. Each derives from the base below for its category. A command's API element is an empty tag and does
-// not satisfy ApiElement.
+// An API element is the C++ type for one type of the API. It holds the name in the API description, the C type
+// (element_type) and the category. Each derives from the base below for its category. A command's API element is an
+// empty tag and does not satisfy ApiElement.
 
 #ifndef GFXRECON_SCHEMA_API_ELEMENT_H
 #define GFXRECON_SCHEMA_API_ELEMENT_H
 
 #include "util/defines.h"
 #include "util/fixed_string.h"
+#include "util/type_list.h"
 
 #include <concepts>
 #include <string_view>
@@ -36,9 +37,12 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(schema)
 
-// Category is the registry's category attribute, with two exceptions. Scalar holds the registry's basetype types plus
-// the C types the registry does not mark (uint32_t, float, char). Void holds void, ExtensionChain and the platform
-// types curation gives no C definition (ANativeWindow, and deref_HWND for the type HWND points at).
+// Category is the category the API description gives the type (Vulkan: the registry's category attribute), with two
+// exceptions:
+//   - Scalar: the types the API description declares over a C type (Vulkan: the registry's basetype types), plus the
+//     C types it does not mark (uint32_t, float, char).
+//   - Void: void, plus the platform types curation gives no C definition (ANativeWindow, and deref_HWND for the type
+//     HWND points at).
 struct Category
 {};
 
@@ -63,16 +67,28 @@ struct Void : Category
 
 GFXRECON_END_NAMESPACE(category)
 
-// ApiElementBase holds the members every API element carries. An API element whose category or element_type departs
-// from what its registry source says keeps the source: a registry basetype states source_category, "basetype"; a
-// deref_ element, declared for the type a platform typedef points at, states the typedef as source_type (::HWND).
-// Neither member exists where the schema says what the source says.
+// A semantic token states a fact about an API element that its category cannot. An API element lists its tokens in
+// semantics.
+GFXRECON_BEGIN_NAMESPACE(semantic)
+
+// Bitvalues: the enum is a bits enum (Vulkan: the registry's bitvalues; its group is declared type="bitmask").
+struct Bitvalues
+{};
+
+GFXRECON_END_NAMESPACE(semantic)
+
+// ApiElementBase holds the members every API element carries; semantics is empty unless the API element declares its
+// own. An API element whose category or element_type departs from what the API description says keeps the source: a
+// type declared over a C type states source_category (Vulkan: "basetype"); a deref_ element, declared for the type a
+// platform typedef points at, states the typedef as source_type (::HWND). Neither member exists where the schema
+// says what the source says.
 template <util::FixedString Name, typename ElementType, typename Category>
 struct ApiElementBase
 {
     static constexpr std::string_view name = Name.view();
     using element_type                     = ElementType;
     using category                         = Category;
+    using semantics                        = util::TypeList<>;
 };
 
 template <typename T>
@@ -109,8 +125,8 @@ template <util::FixedString Name, typename ElementType>
 struct ApiElementVoid : ApiElementBase<Name, ElementType, category::Void>
 {};
 
-// ApiElementTypedStruct is the base for a structure with an sType member. structure_type is the value of that sType,
-// the registry's values attribute.
+// ApiElementTypedStruct is the base for a structure with a structure type member (Vulkan: sType). structure_type is
+// the value of that member for this structure (Vulkan: the registry's values attribute).
 template <util::FixedString Name, typename ElementType, auto kStructureType>
 struct ApiElementTypedStruct : ApiElementBase<Name, ElementType, category::Struct>
 {
@@ -123,19 +139,14 @@ struct ApiElementEnum : ApiElementBase<Name, ElementType, category::Enum>
     using enumerants = Table;
 };
 
-// flags_type is the VkFlags or VkFlags64 API element the typedef is declared over. bitvalues is the bits enum API
-// element, or EmptyBitvalues or EmptyBitvalues64 when the registry gives no bits enum.
+// flags_type is the API element the typedef is declared over (Vulkan: VkFlags or VkFlags64). bitvalues is the bits
+// enum API element, or EmptyBitvalues or EmptyBitvalues64 when the API description gives no bits enum.
 template <util::FixedString Name, typename ElementType, typename FlagsType, typename Bitvalues>
 struct ApiElementBitmask : ApiElementBase<Name, ElementType, category::Bitmask>
 {
     using flags_type = FlagsType;
     using bitvalues  = Bitvalues;
 };
-
-// ExtensionChain is the API element a pNext member points at: a structure whose sType selects its type at run time. C
-// spells it void. It is declared in schema, not in an API's api_elements namespace, because it is API-neutral.
-struct ExtensionChain : ApiElementVoid<"ExtensionChain", void>
-{};
 
 GFXRECON_END_NAMESPACE(schema)
 GFXRECON_END_NAMESPACE(gfxrecon)

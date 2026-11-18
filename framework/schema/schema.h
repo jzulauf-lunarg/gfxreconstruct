@@ -52,13 +52,10 @@ concept TypedStructApiElement = requires
 }
 &&std::is_enum_v<std::remove_cv_t<decltype(Element::structure_type)>>;
 
-// BitvaluesApiElement matches a bits enum, the registry's bitvalues: an enum whose group the registry declares
-// type="bitmask". The generator marks it with kBitvalues.
+// BitvaluesApiElement matches a bits enum: an enum API element that carries the Bitvalues token.
 template <typename Element>
-concept BitvaluesApiElement = EnumApiElement<Element> && requires
-{
-    requires Element::kBitvalues;
-};
+concept BitvaluesApiElement =
+    EnumApiElement<Element> && util::TypeListContains_v<typename Element::semantics, semantic::Bitvalues>;
 
 // HasSchemaFields is true when Schema<ApiElement> lists Fields. A union's Schema lists Alternatives, not Fields, so a
 // union does not satisfy it; generated/generated_<api>_schema_checks.cpp asserts that.
@@ -94,26 +91,26 @@ using ReturnField_t = util::TypeListSole_t<ReturnFields_t<ApiElement>>;
 template <HasCommandSchema ApiElement>
 using ParameterFields_t = decltype(util::TypeListDrop(typename Schema<ApiElement>::Fields{}, kIsReturnField));
 
-template <typename Action, typename Field, typename Storage>
-concept FieldActionFor = requires(Action& action, Field field, Storage& storage)
+template <typename Action, typename Storage, typename Field>
+concept FieldActionFor = requires(Action& action, Storage& storage, Field field)
 {
-    action.Apply(field, storage);
+    action.Apply(storage, field);
 };
 
-// Calls action.Apply(Field{}, storage) for each Field in Schema order; overload resolution selects the Apply from the
-// Field's category and form. If no overload accepts a Field, the static_assert below stops the compile and the
+// Calls action.Apply(storage, Field{}) for each Field in Schema order; overload resolution selects the Apply from the
+// Field's declaration shape. If no overload accepts a Field, the static_assert below stops the compile and the
 // diagnostic shows the Field.
 template <HasSchemaFields ApiElement, typename Action, typename Storage>
 void WalkFields(Action& action, Storage& storage)
 {
     util::TypeListForEach<typename Schema<ApiElement>::Fields>([&]<typename Field>() {
-        if constexpr (FieldActionFor<Action, Field, Storage>)
+        if constexpr (FieldActionFor<Action, Storage, Field>)
         {
-            action.Apply(Field{}, storage);
+            action.Apply(storage, Field{});
         }
         else
         {
-            static_assert(FieldActionFor<Action, Field, Storage>, "Action must support Apply(Field, Storage&)");
+            static_assert(FieldActionFor<Action, Storage, Field>, "Action must support Apply(Storage&, Field)");
         }
     });
 }
@@ -126,7 +123,7 @@ constexpr bool InvocableFromFieldsImpl(util::TypeList<Fields...>)
     return requires(Function && function, Storage & storage)
     {
         {
-            std::forward<Function>(function)(GetRef(storage, Fields{})...)
+            std::forward<Function>(function)(Fields::GetRef(storage)...)
             } -> std::same_as<ApiTypeOf_t<typename ReturnField_t<ApiElement>::api_element>>;
     };
 }
@@ -137,14 +134,15 @@ template <typename ApiElement, typename Function, typename Storage>
 concept InvocableFromFields = HasCommandSchema<ApiElement> &&
     detail::InvocableFromFieldsImpl<ApiElement, Function, Storage>(ParameterFields_t<ApiElement>{});
 
-// Calls function(GetRef(storage, parameter)...) with the command's parameters in Schema order and returns its result.
+// Calls function(Parameter::GetRef(storage)...) with the command's parameters in Schema order and returns its result.
 // InvocableFromFields requires the result to be the return Field's C type.
 template <HasCommandSchema ApiElement, typename Function, typename Storage>
 requires InvocableFromFields<ApiElement, Function, Storage>
 decltype(auto) InvokeFromFields(Function&& function, Storage& storage)
 {
     return util::ApplyFields<ParameterFields_t<ApiElement>>(
-        [&](auto field) -> decltype(auto) { return GetRef(storage, field); }, std::forward<Function>(function));
+        [&]<typename Field>(Field) -> decltype(auto) { return Field::GetRef(storage); },
+        std::forward<Function>(function));
 }
 
 GFXRECON_END_NAMESPACE(schema)

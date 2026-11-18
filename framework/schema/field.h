@@ -29,6 +29,7 @@
 #include "schema/api_element.h"
 #include "util/defines.h"
 #include "util/fixed_string.h"
+#include "util/type_list.h"
 
 #include <concepts>
 #include <cstddef>
@@ -48,15 +49,16 @@ template <typename T>
 concept ExpressionValue = std::derived_from<T, ExpressionValueBase>;
 
 // A Field's declaration is an API element, or a form over a declaration. The forms nest as the C declarator nests:
-// `const T* const*` with length n is Array<Const<Pointer<Const<T>>>, n>, and the API element is the leaf. Each form
-// derives from Declaration<D>, whose element is D, and from its tag type below, which the form concepts test.
+// `const T* const*` with length n is Array<Const<Pointer<Const<T>>>, n>, and the API element is the leaf. Pointer,
+// Array and FixedArray derive from Declaration<D>, whose type is D, the declaration inside the form. Const has no such
+// member. Each form also derives from its tag type below, which the form concepts test.
 struct DeclarationBase
 {};
 
-template <typename E>
+template <typename D>
 struct Declaration : DeclarationBase
 {
-    using element = E;
+    using type = D;
 };
 
 template <typename T>
@@ -72,10 +74,11 @@ struct FixedArrayDeclaration
 {};
 
 // UseCapacity, NullTerminated and UnknownLength are the length tokens, used in place of an expression value.
-// UseCapacity: a FixedArray's length is all N items. NullTerminated: the run ends at its first zero item, the
-// registry's len="null-terminated"; a run of char or wchar_t with it is a string. UnknownLength: the registry's len
-// attribute maps to no expression value, and the Field carries its text as length_expression. A token is not an
-// expression value, so FieldWithLength is false for its Field, and a token has no Get.
+// UseCapacity: a FixedArray's length is all N items. NullTerminated: the run ends at its first zero item (Vulkan: the
+// registry's len="null-terminated"); a run of char or wchar_t with it is a string. UnknownLength: the API description
+// gives a length that maps to no expression value (Vulkan: a registry len attribute), and the Field carries its text
+// as source_length_expression. A token is not an expression value, so FieldWithLength is false for its Field, and a
+// token has no Get.
 struct UseCapacity
 {};
 struct NullTerminated
@@ -89,7 +92,7 @@ concept LengthDescriptor = ExpressionValue<T> || std::same_as<T, UnknownLength> 
 // Const applies const at this level of the declaration.
 template <typename D>
 requires IsDeclaration_v<D>
-struct Const : Declaration<D>, ConstDeclaration
+struct Const : DeclarationBase, ConstDeclaration
 {};
 
 // Pointer declares a pointer to one D.
@@ -107,8 +110,7 @@ struct Array : Declaration<D>, ArrayDeclaration
 };
 
 // FixedArray declares an array of N items of D inside the storage type, with Length of them valid: UseCapacity for all
-// N, NullTerminated for a string, or the expression value of a sibling count member, which the encode Action clamps to
-// N.
+// N, NullTerminated for a string, or the expression value of a sibling count member.
 template <typename D, typename Length, size_t N>
 requires IsDeclaration_v<D>
 struct FixedArray : Declaration<D>, FixedArrayDeclaration
@@ -201,9 +203,34 @@ using ApiTypeOf_t = typename detail::ApiTypeOf<D>::type;
 template <typename D>
 using RemoveConst_t = typename detail::RemoveConst<D>::type;
 
-// FieldBase is the base of every Field. The generator emits one struct per use, in a namespace named for the owner,
-// e.g. `struct pNext : Field<"pNext", Pointer<Const<ExtensionChain>>> {};`, so each use is its own type: for
-// MemberPointer, for the per-use members below, and in diagnostics.
+GFXRECON_BEGIN_NAMESPACE(detail)
+
+// InnerType_t is the declaration inside a Pointer, Array or FixedArray Field, without Const: for
+// Array<Const<Pointer<T>>, n> it is Pointer<T>.
+template <typename Field>
+using InnerType_t = RemoveConst_t<typename RemoveConst_t<typename Field::declaration>::type>;
+
+GFXRECON_END_NAMESPACE(detail)
+
+// A semantic token states a fact about a Field that its declaration cannot. On a pointer to Void it states what the
+// pointer holds. A Field lists its tokens in semantics.
+GFXRECON_BEGIN_NAMESPACE(semantic)
+
+// ExtensionChain: the pointer holds a chain of structures, and the type of each is selected at run time by the
+// structure type it starts with.
+struct ExtensionChain
+{};
+
+// ValidExtensions: the API description lists structures that can follow this structure in its extension chain, as
+// the structure extended or as one that extends another (Vulkan: the registry's structextends attribute).
+struct ValidExtensions
+{};
+
+GFXRECON_END_NAMESPACE(semantic)
+
+// FieldBase is the base of every Field. A Field is one struct per use, in a namespace named for the owner, e.g.
+// `struct buffer : Field<"buffer", api_elements::VkBuffer> { ... };`, so each use is its own type: for its accessor,
+// for the per-use members below, and in diagnostics.
 struct FieldBase
 {};
 
@@ -213,6 +240,7 @@ struct Field : FieldBase
 {
     using declaration = D;
     using api_element = RemoveDeclarators_t<D>;
+    using semantics   = util::TypeList<>;
 
     static constexpr std::string_view field_name = Name.view();
 };
@@ -220,26 +248,32 @@ struct Field : FieldBase
 template <typename T>
 inline constexpr bool IsField_v = std::is_base_of_v<FieldBase, T>;
 
-// A generated Field has only the members below; vulkan_schema_generator.py emits no others. A Field states what one
-// use is. A wire type is a WireTypeOf specialization and a storage member a MemberPointer specialization, never a Field
-// member; category and element_type are read from api_element, never restated on the Field.
+// A Field has only the members below. A Field states what one use is. category and element_type are read from
+// api_element, never restated on the Field.
 //
 //   declaration       Every Field, from the Field base: the API element, or a form over it as C declares it.
 //   api_element       Every Field, from the Field base: the API element at the leaf of declaration.
-//   field_name        Every Field, from the Field base: the registry's member or parameter name, for diagnostics. Not
-//                     `name`: Vulkan declares members called name, and a member cannot share the name of its class.
+//   field_name        Every Field, from the Field base: the member or parameter name in the API description, for
+//                     diagnostics. Not `name`: an API can declare a member called name (Vulkan does), and a member
+//                     cannot share the name of its class.
+//   semantics         Every Field: the TypeList of its semantic tokens, empty from the Field base.
+//   GetRef            Every Field but a bitfield and a void return: returns a reference to the member of this name
+//                     in any storage type that has one. A storage type without the member is a substitution failure,
+//                     so StorageFor is false and not a hard error.
+//   bit_width         A bitfield only: std::integral_constant holding the bit count in the API description (Vulkan:
+//                     the registry's `: N`).
+//   Get, Set          A bitfield only, in place of GetRef: a bitfield has no address ([class.bit]/3).
 //   is_return         A command's return Field only, always true. Absent means false: kIsReturnField in schema.h
 //                     reads it that way, so no other Field states it.
-//   length_expression An Array whose length is UnknownLength: the registry len text as written, kept so it is not lost.
-//                     Nothing reads it.
-//   selector_field    The sibling Field whose value selects this Field's meaning: the registry's selector attribute
-//                     on a union member, or its objecttype attribute on an integer member that holds a handle, the
-//                     sibling that holds the handle's type. The encode Action passes that sibling to GetWrappedId.
-//   selections        A union alternative the registry marks: the selector values that choose it, from the
-//                     registry's selection attribute.
-//   has_extensions    The pNext Field only: true when the registry lists the owner on either side of structextends.
-//                     This is the registry's fact, not the spec's: VkPipelineCreateInfoKHR requires a pNext node and
-//                     gets false. The encode Action trusts the pointer when true and probes it when false.
+//   source_length_expression
+//                     An Array whose length is UnknownLength: the length text as the API description writes it
+//                     (Vulkan: the registry's len attribute), kept so it is not lost.
+//   selector_field    A union-typed member only: the sibling Field whose value selects the union alternative, from
+//                     the API description (Vulkan: the registry's selector attribute).
+//   objecttype_field  An integer member that holds a handle only: the sibling Field that holds the handle's object
+//                     type, from the API description (Vulkan: the registry's objecttype attribute).
+//   selections        A union alternative the API description marks: the selector values that choose it (Vulkan: the
+//                     registry's selection attribute).
 
 template <ApiElement E>
 using CategoryOf_t = typename E::category;
@@ -249,10 +283,8 @@ using CategoryOf_t = typename E::category;
 template <typename Field>
 using LengthOf_t = typename RemoveConst_t<typename Field::declaration>::length;
 
-// DeclaredExtentsMatch is true when a FixedArray Field's declared extents equal ArrayType's, in rank and in every
-// dimension. The decode and encode Actions static_assert it on the member's type where they read the array. A schema
-// that disagrees with the API header then fails to compile wherever an Action is instantiated, not only in
-// generated/generated_<api>_schema_checks.cpp, which asserts each member's declared type.
+// DeclaredExtentsMatch is true when ArrayType, the type storage declares the member as, has the rank and extents of
+// the Field's declaration.
 template <typename ArrayType, typename Field, typename Indices = std::make_index_sequence<std::rank_v<ArrayType>>>
 struct DeclaredExtentsMatch;
 
@@ -269,40 +301,36 @@ struct DeclaredExtentsMatch<ArrayType, Field, std::index_sequence<I...>>
 template <typename ArrayType, typename Field>
 inline constexpr bool DeclaredExtentsMatch_v = DeclaredExtentsMatch<ArrayType, Field>::value;
 
-// MemberPointer<Storage, Field>::value points at the member of Storage that holds Field. The generator specializes it
-// for the API structures, the Decoded_ wrappers and the decode::args command storage. The primary template is
-// undefined: without a specialization StorageFor and Addressable are false, not a hard error.
-template <typename Storage, typename Field>
-struct MemberPointer;
-
-// NotAddressable is the MemberPointer value for a bitfield member: &Storage::member does not exist for a bitfield
-// ([class.bit]/3), so GetRef cannot serve it. Its generated MemberPointer specialization derives from
-// NonAddressableMember and supplies static Get and Set accessors instead.
-struct NotAddressable
-{};
-
-struct NonAddressableMember
-{
-    static constexpr NotAddressable value{};
-};
-
-template <typename Storage, typename Field>
-concept StorageFor = requires
-{
-    MemberPointer<std::remove_cv_t<Storage>, Field>::value;
-};
-
-// FieldWithSelector matches a Field that carries selector_field: a union alternative, or an integer that holds a
-// handle. It tests the Field alone. StorageWithSelector adds that Storage holds the selector sibling, for a body
-// that reads the sibling's value.
+// FieldWithBitWidth matches a bitfield Field: it carries bit_width, and Get and Set in place of GetRef.
 template <typename Field>
-concept FieldWithSelector = requires
+concept FieldWithBitWidth = requires
 {
-    typename Field::selector_field;
+    typename Field::bit_width;
+};
+
+// StorageFor is true when Storage has the member Field reads: the Field's accessor accepts it. The API structure, its
+// Decoded_ wrapper and a command's decode::args structure spell a member the same way, so one accessor serves all.
+template <typename Storage, typename Field>
+concept StorageFor = requires(Storage& storage)
+{
+    Field::GetRef(storage);
+}
+|| requires(const Storage& storage)
+{
+    Field::Get(storage);
+};
+
+// FieldWithObjectType matches a Field that carries objecttype_field: an integer that holds a handle. It tests the
+// Field alone. StorageWithObjectType adds that Storage holds the object type sibling, for a body that reads the
+// sibling's value.
+template <typename Field>
+concept FieldWithObjectType = requires
+{
+    typename Field::objecttype_field;
 };
 
 template <typename Storage, typename Field>
-concept StorageWithSelector = FieldWithSelector<Field> && StorageFor<Storage, typename Field::selector_field>;
+concept StorageWithObjectType = FieldWithObjectType<Field> && StorageFor<Storage, typename Field::objecttype_field>;
 
 // FieldWithLength matches a Field whose declared length is an expression value, a count member or an expression over
 // members, and not a length token. It tests the Field alone. StorageWithLength adds that Storage can evaluate
@@ -319,96 +347,80 @@ concept StorageWithLength = FieldWithLength<Field> && requires(const Storage& st
     LengthOf_t<Field>::Get(storage);
 };
 
-template <typename Storage, typename Field>
-concept Addressable = requires
-{
-    requires std::is_member_object_pointer_v<decltype(MemberPointer<std::remove_cv_t<Storage>, Field>::value)>;
-};
-
-template <typename Storage, typename Field>
-concept NonAddressable = StorageFor<Storage, Field> &&(!Addressable<Storage, Field>);
-
-// Returns a reference to an addressable member. The constraint removes it from the overload set for a bitfield member,
-// which Get and Set serve instead.
-template <typename Storage, typename Field>
-requires Addressable<Storage, Field>
-[[nodiscard]] decltype(auto) GetRef(Storage& storage, Field)
-{
-    return (storage.*MemberPointer<std::remove_cv_t<Storage>, Field>::value);
-}
-
-// Returns a const reference to an addressable member, or a bitfield member's value through the generated Get. Binding
-// the result to const auto& is safe in both cases; take a copy with auto.
+// Returns a const reference to the member, or a bitfield member's value through the Field's Get. Binding the result
+// to const auto& is safe in both cases; take a copy with auto. Get and Set are the only accessors that serve a
+// bitfield; every other read or write calls Field::GetRef(storage).
 template <typename Storage, typename Field>
 requires StorageFor<Storage, Field>
-[[nodiscard]] decltype(auto) Get(const Storage& storage, Field field)
+[[nodiscard]] decltype(auto) Get(const Storage& storage, Field)
 {
-    if constexpr (Addressable<Storage, Field>)
+    if constexpr (FieldWithBitWidth<Field>)
     {
-        return GetRef(storage, field);
+        return Field::Get(storage);
     }
     else
     {
-        return MemberPointer<std::remove_cv_t<Storage>, Field>::Get(storage);
+        return Field::GetRef(storage);
     }
 }
 
-// Writes value to the member: through GetRef when addressable, through the generated Set for a bitfield member. It is
-// the only write available for a bitfield member.
+// Writes value to the member: through the Field's Set for a bitfield, else through Field::GetRef.
 template <typename Storage, typename Field, typename ValueType>
 requires StorageFor<Storage, Field>
-void Set(Storage& storage, Field field, ValueType&& value)
+void Set(Storage& storage, Field, ValueType&& value)
 {
-    if constexpr (Addressable<Storage, Field>)
+    if constexpr (FieldWithBitWidth<Field>)
     {
-        GetRef(storage, field) = std::forward<ValueType>(value);
+        Field::Set(storage, value);
     }
     else
     {
-        MemberPointer<std::remove_cv_t<Storage>, Field>::Set(storage, value);
+        Field::GetRef(storage) = std::forward<ValueType>(value);
     }
 }
+
+// StoredTypeOf_t is the type Storage declares Field's member as, without reference or cv-qualifiers.
+template <typename Storage, typename Field>
+requires StorageFor<Storage, Field>
+using StoredTypeOf_t =
+    std::remove_cvref_t<decltype(schema::Get(std::declval<const Storage&>(), std::declval<Field>()))>;
 
 // The form concepts below each take a Field and test its declaration under any outer Const (RemoveConst_t).
 
-// VoidReturnField matches a void command's return Field: Void by value, with no runtime value, no storage member and
-// no encoded bytes. The generator emits one is_return Field for every command, Void for a void command, so
-// ReturnFields_t finds exactly one and ParameterFields_t drops it.
+// VoidReturnField matches a void command's return Field: Void by value, with no runtime value and no storage member.
+// Every command has exactly one is_return Field, Void for a void command, so ReturnFields_t finds exactly one and
+// ParameterFields_t drops it.
 template <typename Field>
 concept VoidReturnField = ApiElement<RemoveConst_t<typename Field::declaration>> &&
     std::same_as<typename RemoveConst_t<typename Field::declaration>::category, category::Void>;
 
-// ValueField matches a directly held value: the declaration is an API element.
+// ValueField matches a directly held value: the declaration is an API element. A void return has no value and is not
+// a ValueField.
 template <typename Field>
 concept ValueField = ApiElement<RemoveConst_t<typename Field::declaration>> && !VoidReturnField<Field>;
 
-// ExtensionChainField matches a structure's pNext Field: a Pointer whose leaf is ExtensionChain. The type of each node
-// in the chain is selected at run time from its encoded sType.
+// PointerField matches a pointer to one item.
 template <typename Field>
-concept ExtensionChainField = std::is_base_of_v<PointerDeclaration, RemoveConst_t<typename Field::declaration>> &&
-    std::same_as<typename Field::api_element, ExtensionChain>;
+concept PointerField = std::is_base_of_v<PointerDeclaration, RemoveConst_t<typename Field::declaration>>;
 
-// PointerField matches a pointer to one item. A pNext Field is an ExtensionChainField, not a PointerField.
+// ExtensionChainField matches a structure's pNext Field: a PointerField whose Field carries the ExtensionChain token.
 template <typename Field>
-concept PointerField =
-    std::is_base_of_v<PointerDeclaration, RemoveConst_t<typename Field::declaration>> && !ExtensionChainField<Field>;
+concept ExtensionChainField =
+    PointerField<Field> && util::TypeListContains_v<typename Field::semantics, semantic::ExtensionChain>;
 
 // PointerToPointerField matches a pointer to a pointer: an output slot the callee fills with an address (void** ppData,
 // AHardwareBuffer** pBuffer). Only command parameters have this form; no structure member does.
 template <typename Field>
-concept PointerToPointerField = PointerField<Field> &&
-    std::is_base_of_v<PointerDeclaration, RemoveConst_t<typename RemoveConst_t<typename Field::declaration>::element>>;
+concept PointerToPointerField =
+    PointerField<Field> && std::is_base_of_v<PointerDeclaration, detail::InnerType_t<Field>>;
 
-// PointerArrayField matches an Array whose item is a Pointer: count pointers, each to one item, and nothing more.
-// EncoderAdapter encodes what each pointer points at by category: one structure, or a null-terminated string.
+// ArrayField matches a pointer to a run of items, with a length.
 template <typename Field>
-concept PointerArrayField = std::is_base_of_v<ArrayDeclaration, RemoveConst_t<typename Field::declaration>> &&
-    std::is_base_of_v<PointerDeclaration, RemoveConst_t<typename RemoveConst_t<typename Field::declaration>::element>>;
+concept ArrayField = std::is_base_of_v<ArrayDeclaration, RemoveConst_t<typename Field::declaration>>;
 
-// ArrayField matches a pointer to a run of items, with a length. An Array of pointers is a PointerArrayField instead.
+// PointerArrayField matches an ArrayField whose item is a Pointer: count pointers, each to one item, and nothing more.
 template <typename Field>
-concept ArrayField =
-    std::is_base_of_v<ArrayDeclaration, RemoveConst_t<typename Field::declaration>> && !PointerArrayField<Field>;
+concept PointerArrayField = ArrayField<Field> && std::is_base_of_v<PointerDeclaration, detail::InnerType_t<Field>>;
 
 // FixedArrayField matches a fixed-extent array declared in the storage type itself.
 template <typename Field>
@@ -416,49 +428,39 @@ concept FixedArrayField = std::is_base_of_v<FixedArrayDeclaration, RemoveConst_t
 
 GFXRECON_BEGIN_NAMESPACE(detail)
 
+template <typename T>
+concept CharacterType = std::same_as<T, char> || std::same_as<T, wchar_t>;
+
+// StringDeclaration matches the declaration of a string: an Array or FixedArray of char or wchar_t whose length is
+// NullTerminated.
 template <typename D>
-struct IsNullTerminated : std::false_type
-{};
-template <typename D>
-struct IsNullTerminated<Array<D, NullTerminated>> : std::true_type
-{};
-template <typename D, size_t N>
-struct IsNullTerminated<FixedArray<D, NullTerminated, N>> : std::true_type
-{};
+concept StringDeclaration =
+    std::same_as<typename D::length, NullTerminated> && CharacterType<ApiTypeOf_t<RemoveConst_t<typename D::type>>>;
 
 GFXRECON_END_NAMESPACE(detail)
 
-// NullTerminatedField matches a string: an Array or FixedArray whose length is NullTerminated, over a char or wchar_t
-// scalar. NullTerminatedArrayField matches a counted run of strings, const char* const*: an Array whose item is one.
+// StringField matches a Field whose declaration is a string.
+// StringArrayField matches a counted run of strings, const char* const*: an ArrayField whose inner type is a string.
 template <typename Field>
-concept NullTerminatedField = detail::IsNullTerminated<RemoveConst_t<typename Field::declaration>>::value;
+concept StringField = detail::StringDeclaration<RemoveConst_t<typename Field::declaration>>;
 
 template <typename Field>
-concept NullTerminatedArrayField = ArrayField<Field> &&
-    detail::IsNullTerminated<RemoveConst_t<typename RemoveConst_t<typename Field::declaration>::element>>::value;
+concept StringArrayField = ArrayField<Field> && detail::StringDeclaration<detail::InnerType_t<Field>>;
 
 // Category concepts take an API element, a Field's api_element; form concepts take the Field. Combine them:
 // VoidApiElement<typename F::api_element> && PointerField<F> is a pointer to void.
 template <typename E>
 concept HandleApiElement = ApiElement<E> && std::same_as<CategoryOf_t<E>, category::Handle>;
 
-template <typename Field>
-concept HandleValueField = HandleApiElement<typename Field::api_element> && ValueField<Field>;
-
-// ScalarApiElement matches scalar, enum and bitmask API elements; both Actions read or write them as WireTypeOf_t.
+// SimpleApiElement matches scalar, enum and bitmask API elements; both Actions read or write them as WireTypeOf_t.
 template <typename E>
-concept ScalarApiElement = ApiElement<E> &&
+concept SimpleApiElement = ApiElement<E> &&
     (std::same_as<CategoryOf_t<E>, category::Scalar> || std::same_as<CategoryOf_t<E>, category::Enum> ||
      std::same_as<CategoryOf_t<E>, category::Bitmask>);
 
-template <typename Field>
-concept ScalarValueField = ScalarApiElement<typename Field::api_element> && ValueField<Field>;
-
-// StructApiElement matches structures and unions. A union Field takes the structure Apply;
-// decode/custom_vulkan_struct_decoders.cpp and encode/custom_vulkan_struct_encoders.cpp hold the hand-written
-// DecodeStruct and EncodeStruct union overloads it reaches.
+// StructOrUnionApiElement matches structures and unions.
 template <typename E>
-concept StructApiElement = ApiElement<E> &&
+concept StructOrUnionApiElement = ApiElement<E> &&
     (std::same_as<CategoryOf_t<E>, category::Struct> || std::same_as<CategoryOf_t<E>, category::Union>);
 
 // UnionApiElement matches a union. Its Schema lists Alternatives, not Fields; see schema/schema.h.
@@ -480,24 +482,10 @@ concept FuncpointerApiElement = ApiElement<E> && std::same_as<CategoryOf_t<E>, c
 template <typename E>
 concept VoidApiElement = ApiElement<E> && std::same_as<CategoryOf_t<E>, category::Void>;
 
-// IdentifierApiElement matches the API elements recorded as an identifier rather than the thing itself: a handle's
-// capture id, or a function's address. The decode Action writes the identifier to the Decoded_ wrapper member and
-// nulls the API structure's member; replay maps handle members through MapStructHandles.
+// IdentifierApiElement matches a handle or a function pointer: a value that has meaning only in the process that
+// created it.
 template <typename E>
 concept IdentifierApiElement = HandleApiElement<E> || FuncpointerApiElement<E>;
-
-// AnyPointerField matches any pointer form. Constrain on it where the body ignores the length: a PointerDecoder reads
-// length and depth from the capture, so a pointer to one item is a run of one and a run of pointers is one more level.
-template <typename Field>
-concept AnyPointerField = PointerField<Field> || ArrayField<Field> || PointerArrayField<Field>;
-
-template <typename Field>
-concept AnyCountedField = ArrayField<Field> || PointerArrayField<Field>;
-
-// AnyArrayField matches a counted or fixed run of items. EncoderAdapter's array entries take either, since both pass a
-// pointer and a count; the encode Action computes the count differently for each.
-template <typename Field>
-concept AnyArrayField = FixedArrayField<Field> || ArrayField<Field>;
 
 GFXRECON_BEGIN_NAMESPACE(detail)
 
@@ -523,22 +511,25 @@ struct FieldValue : ExpressionValueBase
     [[nodiscard]] static auto Get(const Storage& storage) { return schema::Get(storage, Field{}); }
 };
 
-// StoragePtrValue<F, Member> reads Member from the structure the pointer F points at, e.g.
-// StoragePtrValue<pAllocateInfo, fields::VkCommandBufferAllocateInfo::commandBufferCount>.
-template <typename Field, typename Member>
-struct StoragePtrValue : ExpressionValueBase
+// Deref<Operand> yields what the pointer Operand yields points at, as a reference.
+// NOTE: MUST NOT be evaluated on a null pointer; Get does not test it.
+template <ExpressionValue Operand>
+struct Deref : ExpressionValueBase
 {
-    static_assert(PointerField<Field>, "Pointer Field only. Struct Field: add a GetRef branch in Get and FieldStore.");
-
     template <typename Storage>
-    using FieldStore = std::remove_cvref_t<decltype(*FieldValue<Field>::Get(std::declval<const Storage&>()))>;
+    requires std::is_pointer_v<std::remove_cvref_t<OperandValue_t<Operand, Storage>>>
+    [[nodiscard]] static decltype(auto) Get(const Storage& storage) { return *Operand::Get(storage); }
+};
 
+// StorageValue<Base, F> reads F's member from the storage Base yields, so the spelling follows the source:
+// StorageValue<Deref<FieldValue<pAllocateInfo>>, fields::VkCommandBufferAllocateInfo::commandBufferCount> is
+// pAllocateInfo->commandBufferCount.
+template <ExpressionValue Base, typename Field>
+struct StorageValue : ExpressionValueBase
+{
     template <typename Storage>
-    requires StorageFor<FieldStore<Storage>, Member>
-    [[nodiscard]] static auto Get(const Storage& storage)
-    {
-        return schema::Get(*FieldValue<Field>::Get(storage), Member{});
-    }
+    requires StorageFor<std::remove_cvref_t<OperandValue_t<Base, Storage>>, Field>
+    [[nodiscard]] static auto Get(const Storage& storage) { return schema::Get(Base::Get(storage), Field{}); }
 };
 
 // Literal<V> yields V as declared, an integer or an enumerator. An API constant such as VK_UUID_SIZE is a macro, so
@@ -555,9 +546,8 @@ struct Literal : ExpressionValueBase
     }
 };
 
-// AsInteger<Operand> yields an enum-valued Operand as its underlying integer type. The generator applies it where a
-// length reads an enum member, rasterizationSamples for pSampleMask, so the operators see integers only. For a C
-// enum the underlying type is the compiler's choice, so the result's signedness is not portable; its value is.
+// AsInteger<Operand> yields an enum-valued Operand as its underlying integer type, so that an operator can take it.
+// For a C enum the underlying type is the compiler's choice, so the result's signedness is not portable; its value is.
 template <ExpressionValue Operand>
 struct AsInteger : ExpressionValueBase
 {
@@ -570,11 +560,7 @@ struct AsInteger : ExpressionValueBase
     }
 };
 
-// Sum, Product and Quotient compute in their operands' own types under the usual arithmetic conversions. The generator
-// writes a literal unsigned (Literal<4u>) unless an enum operand, read through AsInteger, takes part, so no sign
-// conversion occurs. The encode
-// Action narrows the result to size_t once. Registry len attributes use these three operators only; a new one is a
-// ExpressionValue here and a case in parse_count_expression (vulkan_schema_generator.py).
+// Sum, Product and Quotient compute in their operands' own types under the usual arithmetic conversions.
 template <ExpressionValue Left, ExpressionValue Right>
 struct Sum : ExpressionValueBase
 {
@@ -600,10 +586,7 @@ struct Quotient : ExpressionValueBase
 };
 
 template <typename Storage, typename Field, typename ValueType>
-concept StoresFieldAs = Addressable<Storage, Field> && requires(Storage& storage, Field field)
-{
-    requires std::same_as<std::remove_cvref_t<decltype(GetRef(storage, field))>, ValueType>;
-};
+concept StoresFieldAs = StorageFor<Storage, Field> && std::same_as<StoredTypeOf_t<Storage, Field>, ValueType>;
 
 template <typename Storage, typename Field>
 concept StoresElementField = StoresFieldAs<Storage, Field, ApiTypeOf_t<typename Field::api_element>>;

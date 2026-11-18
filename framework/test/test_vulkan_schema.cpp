@@ -43,9 +43,9 @@
 #include "encode/struct_pointer_encoder.h"
 #include "util/logging.h"
 
-#include "generated/generated_vulkan_schema_decoded_command_members.h"
-#include "generated/generated_vulkan_schema_decoded_struct_members.h"
-#include "generated/generated_vulkan_schema_api_struct_members.h"
+#include "decode/vulkan_decoder_args.h"
+#include "generated/generated_vulkan_decoder_args.h"
+#include "generated/generated_vulkan_struct_decoders.h"
 #include "binding/vulkan_api_element_of.h"
 #include "binding/vulkan_wire_type.h"
 #include "generated/generated_vulkan_schema_enumerants.h"
@@ -100,7 +100,7 @@ static_assert(
                    VkResult>);
 
 // category follows vk.xml's category attribute, except that VkSampleMask and VkDeviceSize, basetype in vk.xml, are
-// Scalar. A union is a StructApiElement.
+// Scalar. A union is a StructOrUnionApiElement.
 static_assert(
     std::is_same_v<schema::ApiTypeOf_t<schema::vulkan::api_elements::VkPipelineStageFlags>, VkPipelineStageFlags>);
 static_assert(std::is_same_v<schema::vulkan::api_elements::VkPipelineStageFlags::category, schema::category::Bitmask>);
@@ -110,10 +110,10 @@ static_assert(std::is_same_v<schema::vulkan::api_elements::VkResult::category, s
 static_assert(std::is_same_v<schema::vulkan::api_elements::VkSampleMask::category, schema::category::Scalar>);
 static_assert(std::is_same_v<schema::vulkan::api_elements::VkDeviceSize::category, schema::category::Scalar>);
 static_assert(std::is_same_v<schema::vulkan::api_elements::VkClearColorValue::category, schema::category::Union>);
-static_assert(schema::StructApiElement<schema::vulkan::api_elements::VkClearColorValue>);
+static_assert(schema::StructOrUnionApiElement<schema::vulkan::api_elements::VkClearColorValue>);
 
-// A bits enum sets kBitvalues. A bitmask holds its flags_type and its bitvalues; a bitmask that vk.xml gives no bits
-// enum holds EmptyBitvalues, whose enumerant table is empty.
+// A bits enum carries the Bitvalues token. A bitmask holds its flags_type and its bitvalues; a bitmask that vk.xml
+// gives no bits enum holds EmptyBitvalues, whose enumerant table is empty.
 static_assert(schema::BitvaluesApiElement<schema::vulkan::api_elements::VkAccessFlagBits2>);
 static_assert(!schema::BitvaluesApiElement<schema::vulkan::api_elements::VkResult>);
 static_assert(
@@ -129,16 +129,24 @@ static_assert(std::is_same_v<VkAccessFlags2, VkPipelineStageFlags2>);
 static_assert(
     !std::is_same_v<schema::vulkan::api_elements::VkAccessFlags2, schema::vulkan::api_elements::VkPipelineStageFlags2>);
 
-// UInt32 and VkBool32 are both Scalar; ApiTypeOf_t<UInt32> is uint32_t, and srcQueueFamilyIndex is a ScalarValueField.
+// HandleValueField and SimpleValueField match a handle, or a scalar, enum or bitmask, held by value. Only this file
+// uses them: in the assertions below and to constrain CountingAction.
+template <typename Field>
+concept HandleValueField = schema::HandleApiElement<typename Field::api_element> && schema::ValueField<Field>;
+
+template <typename Field>
+concept SimpleValueField = schema::SimpleApiElement<typename Field::api_element> && schema::ValueField<Field>;
+
+// UInt32 and VkBool32 are both Scalar; ApiTypeOf_t<UInt32> is uint32_t, and srcQueueFamilyIndex is a SimpleValueField.
 static_assert(std::is_same_v<schema::vulkan::api_elements::UInt32::category, schema::category::Scalar>);
 static_assert(std::is_same_v<schema::vulkan::api_elements::VkBool32::category, schema::category::Scalar>);
 static_assert(std::is_same_v<schema::ApiTypeOf_t<schema::vulkan::api_elements::UInt32>, uint32_t>);
-static_assert(schema::ScalarValueField<barrier_field::srcQueueFamilyIndex>);
+static_assert(SimpleValueField<barrier_field::srcQueueFamilyIndex>);
 
-// ScalarValueField holds for a scalar (offset), a bitmask (srcAccessMask) and an enum (sType).
-static_assert(schema::ScalarValueField<barrier_field::srcAccessMask>);
-static_assert(schema::ScalarValueField<barrier_field::offset>);
-static_assert(schema::ScalarValueField<barrier_field::sType>);
+// SimpleValueField holds for a scalar (offset), a bitmask (srcAccessMask) and an enum (sType).
+static_assert(SimpleValueField<barrier_field::srcAccessMask>);
+static_assert(SimpleValueField<barrier_field::offset>);
+static_assert(SimpleValueField<barrier_field::sType>);
 
 // WireTypeOf: specializations generated for scalar, enum and text (generated_vulkan_wire_types.h); partial
 // specializations for bitmask, handle, funcpointer and opaque (binding/wire_type_of.h).
@@ -155,66 +163,66 @@ static_assert(std::is_same_v<binding::WireTypeOf_t<schema::vulkan::api_elements:
                              format::AddressEncodeType>);
 
 // The form and category concepts select on the barrier's Fields, and LengthOf_t is the count Field of a run.
-static_assert(schema::HandleValueField<barrier_field::buffer>);
-static_assert(schema::StructApiElement<cmd_field::pBufferMemoryBarriers::api_element>);
+static_assert(HandleValueField<barrier_field::buffer>);
+static_assert(schema::StructOrUnionApiElement<cmd_field::pBufferMemoryBarriers::api_element>);
 static_assert(schema::ArrayField<cmd_field::pBufferMemoryBarriers>);
 static_assert(std::is_same_v<schema::LengthOf_t<cmd_field::pBufferMemoryBarriers>,
                              schema::FieldValue<cmd_field::bufferMemoryBarrierCount>>);
 static_assert(schema::ExtensionChainField<barrier_field::pNext>);
 
 // One Field reaches a member of every storage type that holds it.
-static_assert(schema::Addressable<VkBufferMemoryBarrier, barrier_field::buffer>);
-static_assert(schema::Addressable<decode::Decoded_VkBufferMemoryBarrier, barrier_field::buffer>);
-static_assert(schema::Addressable<decode::args::CmdPipelineBarrier, cmd_field::pBufferMemoryBarriers>);
+static_assert(schema::StorageFor<VkBufferMemoryBarrier, barrier_field::buffer>);
+static_assert(schema::StorageFor<decode::Decoded_VkBufferMemoryBarrier, barrier_field::buffer>);
+static_assert(schema::StorageFor<decode::args::CmdPipelineBarrier, cmd_field::pBufferMemoryBarriers>);
 static_assert(schema::StoresElementField<VkBufferMemoryBarrier, barrier_field::buffer>);
 
 // A scalar that decode leaves in the wrapped API structure has no decoded-wrapper mapping.
 static_assert(schema::StorageFor<VkBufferMemoryBarrier, barrier_field::srcAccessMask>);
 static_assert(!schema::StorageFor<decode::Decoded_VkBufferMemoryBarrier, barrier_field::srcAccessMask>);
 
-// objectHandle is a uint64_t vk.xml marks objecttype="objectType": its API element is UInt64, and its selector_field
-// is objectType, the sibling that holds the handle type at run time.
+// objectHandle is a uint64_t vk.xml marks objecttype="objectType": its API element is UInt64, and its
+// objecttype_field is objectType, the sibling that holds the handle type at run time.
 namespace debug_field = schema::vulkan::fields::VkDebugUtilsObjectNameInfoEXT;
 static_assert(std::is_same_v<debug_field::objectHandle::api_element, schema::vulkan::api_elements::UInt64>);
-static_assert(std::is_same_v<debug_field::objectHandle::selector_field, debug_field::objectType>);
-static_assert(schema::ScalarValueField<debug_field::objectHandle>);
+static_assert(std::is_same_v<debug_field::objectHandle::objecttype_field, debug_field::objectType>);
+static_assert(SimpleValueField<debug_field::objectHandle>);
 
-// VkAccelerationStructureInstanceKHR::mask is a bitfield: it has a MemberPointer specialization but no address, so
-// GetRef does not accept it and Get and Set go through the generated accessors.
+// VkAccelerationStructureInstanceKHR::mask is a bitfield, `uint32_t mask : 8`: it has no address, so its Field
+// carries bit_width with Get and Set and has no GetRef.
 static_assert(schema::StorageFor<VkAccelerationStructureInstanceKHR,
                                  schema::vulkan::fields::VkAccelerationStructureInstanceKHR::mask>);
-static_assert(schema::NonAddressable<VkAccelerationStructureInstanceKHR,
-                                     schema::vulkan::fields::VkAccelerationStructureInstanceKHR::mask>);
+static_assert(schema::FieldWithBitWidth<schema::vulkan::fields::VkAccelerationStructureInstanceKHR::mask>);
+static_assert(schema::vulkan::fields::VkAccelerationStructureInstanceKHR::mask::bit_width::value == 8);
+static_assert(!schema::FieldWithBitWidth<barrier_field::buffer>);
 
 // DecodedTypeOf and CallId_v resolve through the bindings, keyed on the API element as the schema is.
 static_assert(std::is_same_v<binding::DecodedTypeOf_t<Barrier>, decode::Decoded_VkBufferMemoryBarrier>);
 static_assert(std::is_same_v<binding::DecodedTypeOf_t<Command>, decode::args::CmdPipelineBarrier>);
 static_assert(binding::CallId_v<Command> == format::ApiCallId::ApiCall_vkCmdPipelineBarrier);
 
-// Counts the Fields WalkFields visits, as HandleValueField, ScalarValueField, or neither.
+// Counts the Fields WalkFields visits, as HandleValueField, SimpleValueField, or neither.
 struct CountingAction
 {
-    size_t handles = 0;
-    size_t scalars = 0;
-    size_t others  = 0;
+    size_t handles       = 0;
+    size_t simple_values = 0;
+    size_t others        = 0;
 
-    template <typename Field, typename Storage>
-    requires schema::HandleValueField<Field>
-    void Apply(Field, Storage&) { ++handles; }
+    template <typename Storage, typename Field>
+    requires HandleValueField<Field>
+    void Apply(Storage&, Field) { ++handles; }
 
-    template <typename Field, typename Storage>
-    requires schema::ScalarValueField<Field>
-    void Apply(Field, Storage&) { ++scalars; }
+    template <typename Storage, typename Field>
+    requires SimpleValueField<Field>
+    void Apply(Storage&, Field) { ++simple_values; }
 
-    template <typename Field, typename Storage>
-    requires(!schema::HandleValueField<Field> && !schema::ScalarValueField<Field>) void Apply(Field, Storage&)
-    {
-        ++others;
-    }
+    template <typename Storage, typename Field>
+    requires(!HandleValueField<Field> && !SimpleValueField<Field>) void Apply(Storage&, Field) { ++others; }
 };
 
 // Stands in for vkCmdPipelineBarrier in the InvokeFromFields test: the same signature, an empty body. ApiCallStorage
-// and AllocateCallStorage below are hand-written command stores for the InvokeFromFields and FieldValue tests.
+// and AllocateCallStorage below are hand-written command stores for the InvokeFromFields and FieldValue tests. A
+// Field's accessor reads the member of its name from any storage type, so a hand-written store serves the same Fields
+// as the API structure and its Decoded_ wrapper with no declaration beyond its members.
 void RecordPipelineBarrier(VkCommandBuffer,
                            VkPipelineStageFlags,
                            VkPipelineStageFlags,
@@ -251,81 +259,6 @@ struct AllocateCallStorage
 };
 } // namespace
 
-GFXRECON_BEGIN_NAMESPACE(gfxrecon)
-GFXRECON_BEGIN_NAMESPACE(schema)
-
-// Maps command Fields onto the hand-written stores. MemberPointer keys on the storage type and the Field, not on
-// the Field alone, so a hand-written store maps the same Fields as the API structure and its Decoded_ wrapper.
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::commandBuffer>
-{
-    static constexpr auto value = &ApiCallStorage::commandBuffer;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::srcStageMask>
-{
-    static constexpr auto value = &ApiCallStorage::srcStageMask;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::dstStageMask>
-{
-    static constexpr auto value = &ApiCallStorage::dstStageMask;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::dependencyFlags>
-{
-    static constexpr auto value = &ApiCallStorage::dependencyFlags;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::memoryBarrierCount>
-{
-    static constexpr auto value = &ApiCallStorage::memoryBarrierCount;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::pMemoryBarriers>
-{
-    static constexpr auto value = &ApiCallStorage::pMemoryBarriers;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::bufferMemoryBarrierCount>
-{
-    static constexpr auto value = &ApiCallStorage::bufferMemoryBarrierCount;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::pBufferMemoryBarriers>
-{
-    static constexpr auto value = &ApiCallStorage::pBufferMemoryBarriers;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::imageMemoryBarrierCount>
-{
-    static constexpr auto value = &ApiCallStorage::imageMemoryBarrierCount;
-};
-template <>
-struct MemberPointer<ApiCallStorage, cmd_field::pImageMemoryBarriers>
-{
-    static constexpr auto value = &ApiCallStorage::pImageMemoryBarriers;
-};
-
-template <>
-struct MemberPointer<AllocateCallStorage, alloc_field::device>
-{
-    static constexpr auto value = &AllocateCallStorage::device;
-};
-template <>
-struct MemberPointer<AllocateCallStorage, alloc_field::pAllocateInfo>
-{
-    static constexpr auto value = &AllocateCallStorage::pAllocateInfo;
-};
-template <>
-struct MemberPointer<AllocateCallStorage, alloc_field::pCommandBuffers>
-{
-    static constexpr auto value = &AllocateCallStorage::pCommandBuffers;
-};
-
-GFXRECON_END_NAMESPACE(schema)
-GFXRECON_END_NAMESPACE(gfxrecon)
-
 TEST_CASE("One field walk covers a generated structure schema", "[schema]")
 {
     CountingAction        action{};
@@ -334,9 +267,9 @@ TEST_CASE("One field walk covers a generated structure schema", "[schema]")
     schema::WalkFields<Barrier>(action, barrier);
 
     // sType, srcAccessMask, dstAccessMask, srcQueueFamilyIndex, dstQueueFamilyIndex, offset and size are
-    // ScalarValueFields, buffer is the one handle, and pNext is the extension chain.
+    // SimpleValueFields, buffer is the one handle, and pNext is the extension chain.
     CHECK(action.handles == 1);
-    CHECK(action.scalars == 7);
+    CHECK(action.simple_values == 7);
     CHECK(action.others == 1);
 }
 
@@ -473,9 +406,10 @@ TEST_CASE("Schema EncodeStruct matches fixed-extent array wire bytes", "[schema]
 
 TEST_CASE("Schema EncodeStruct matches extension-chain wire bytes", "[schema][encode]")
 {
-    // Checks the extension chain against an oracle that calls the entry point the Field's has_extensions selects:
-    // true, EncodePNextStruct; false, EncodePNextStructIfValid. VkSubpassEndInfo and VkPipelineCreateInfoKHR are sType
-    // and pNext only, so nothing else differs. Each structure is encoded with a null chain and with a one-node chain.
+    // Checks the extension chain against an oracle that calls the entry point the Field's ValidExtensions token
+    // selects: with it, EncodePNextStruct; without it, EncodePNextStructIfValid. VkSubpassEndInfo and
+    // VkPipelineCreateInfoKHR are sType and pNext only, so nothing else differs. Each structure is encoded with a null
+    // chain and with a one-node chain.
     auto same_bytes = [](const encode::ParameterBuffer& actual, const encode::ParameterBuffer& oracle) {
         return actual.GetDataSize() == oracle.GetDataSize() &&
                std::memcmp(actual.GetData(), oracle.GetData(), actual.GetDataSize()) == 0;
@@ -487,7 +421,7 @@ TEST_CASE("Schema EncodeStruct matches extension-chain wire bytes", "[schema][en
     };
 
     // Chain nodes: a structure vk.xml lets extend VkSubpassEndInfo, and the one it lets extend VkAttachmentReference2.
-    // The structures without has_extensions take the stencil node too: EncodePNextStruct finds a node by sType alone,
+    // The structures without ValidExtensions take the stencil node too: EncodePNextStruct finds a node by sType alone,
     // not by what vk.xml allows on the owner, so a node on the wire shows that the probe followed the pointer.
     VkRenderPassFragmentDensityMapOffsetEndInfoEXT offsets{};
     offsets.sType = VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_OFFSET_END_INFO_EXT;
@@ -496,7 +430,7 @@ TEST_CASE("Schema EncodeStruct matches extension-chain wire bytes", "[schema][en
     stencil.sType         = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_STENCIL_LAYOUT;
     stencil.stencilLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
 
-    // has_extensions: EncodePNextStruct, which trusts the pointer.
+    // ValidExtensions: EncodePNextStruct, which trusts the pointer.
     for (const void* chain : { static_cast<const void*>(nullptr), static_cast<const void*>(&offsets) })
     {
         VkSubpassEndInfo end{ VK_STRUCTURE_TYPE_SUBPASS_END_INFO, chain };
@@ -512,7 +446,7 @@ TEST_CASE("Schema EncodeStruct matches extension-chain wire bytes", "[schema][en
         CHECK(same_bytes(end_buffer, end_oracle_buffer));
     }
 
-    // No has_extensions: EncodePNextStructIfValid, which probes the pointer before it walks the chain. vk.xml declares
+    // No ValidExtensions: EncodePNextStructIfValid, which probes the pointer before it walks the chain. vk.xml declares
     // no structure that extends VkPipelineCreateInfoKHR, though VK_KHR_pipeline_binary requires a pipeline create-info
     // structure in its pNext chain.
     for (void* chain : { static_cast<void*>(nullptr), static_cast<void*>(&stencil) })
@@ -530,7 +464,7 @@ TEST_CASE("Schema EncodeStruct matches extension-chain wire bytes", "[schema][en
         CHECK(same_bytes(create_buffer, create_oracle_buffer));
     }
 
-    // has_extensions, with three scalars after pNext, so a chain written at the wrong length shifts them.
+    // ValidExtensions, with three scalars after pNext, so a chain written at the wrong length shifts them.
     for (const void* chain : { static_cast<const void*>(nullptr), static_cast<const void*>(&stencil) })
     {
         VkAttachmentReference2 reference{ VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
@@ -553,7 +487,7 @@ TEST_CASE("Schema EncodeStruct matches extension-chain wire bytes", "[schema][en
         CHECK(same_bytes(reference_buffer, reference_oracle_buffer));
     }
 
-    // No has_extensions.
+    // No ValidExtensions.
     for (const void* chain : { static_cast<const void*>(nullptr), static_cast<const void*>(&stencil) })
     {
         VkPerTileBeginInfoQCOM begin{ VK_STRUCTURE_TYPE_PER_TILE_BEGIN_INFO_QCOM, chain };
@@ -828,7 +762,7 @@ TEST_CASE("Schema EncodeStruct matches address-value wire bytes", "[schema][enco
     // The non-null value fits a 32-bit pointer, so the list-initialization narrows on no target.
     for (uintptr_t address : { uintptr_t{ 0 }, uintptr_t{ 0x7ff6a1b0u } })
     {
-        // Two typed platform handles; no has_extensions, so the chain is probed.
+        // Two typed platform handles; no ValidExtensions, so the chain is probed.
         VkWin32SurfaceCreateInfoKHR surface{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
                                              nullptr,
                                              0u,
@@ -955,7 +889,7 @@ TEST_CASE("Schema EncodeStruct matches wrapped-handle wire bytes", "[schema][enc
 
     for (const Handles& handles : { Handles{ VK_NULL_HANDLE, VK_NULL_HANDLE }, Handles{ buffer, memory } })
     {
-        // A VkDeviceMemory handle; no has_extensions.
+        // A VkDeviceMemory handle; no ValidExtensions.
         VkMappedMemoryRange range{ VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr, handles.memory, 0x100u, 0x200u };
 
         CHECK(matches(range, [&](encode::ParameterEncoder& oracle) {
@@ -966,7 +900,7 @@ TEST_CASE("Schema EncodeStruct matches wrapped-handle wire bytes", "[schema][enc
             oracle.EncodeUInt64Value(range.size);
         }));
 
-        // A VkBuffer handle among six scalars; has_extensions.
+        // A VkBuffer handle among six scalars; ValidExtensions.
         VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
                                        nullptr,
                                        VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -1100,7 +1034,7 @@ TEST_CASE("Schema EncodeStruct matches wrapped-handle run wire bytes", "[schema]
             oracle.EncodeVulkanHandleArray<SemaphoreWrapper>(submit.pSignalSemaphores, submit.signalSemaphoreCount);
         }));
 
-        // A handle run and a uint64_t run under one count; no has_extensions.
+        // A handle run and a uint64_t run under one count; no ValidExtensions.
         VkSemaphoreWaitInfo wait{
             VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, VK_SEMAPHORE_WAIT_ANY_BIT, 2u, handles.semaphores, values
         };
@@ -1187,7 +1121,7 @@ TEST_CASE("Schema EncodeStruct matches generic-handle and text-pointer wire byte
 
     for (const Case& c : { Case{ 0u, nullptr }, Case{ buffer_bits, "" }, Case{ buffer_bits, "schema" } })
     {
-        // VkObjectType selector; has_extensions.
+        // VkObjectType selector; ValidExtensions.
         VkDebugUtilsObjectNameInfoEXT utils{
             VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, nullptr, VK_OBJECT_TYPE_BUFFER, c.object, c.name
         };
@@ -1200,7 +1134,7 @@ TEST_CASE("Schema EncodeStruct matches generic-handle and text-pointer wire byte
             oracle.EncodeString(utils.pObjectName);
         }));
 
-        // VkDebugReportObjectTypeEXT selector; no has_extensions.
+        // VkDebugReportObjectTypeEXT selector; no ValidExtensions.
         VkDebugMarkerObjectNameInfoEXT marker{ VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
                                                nullptr,
                                                VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,
@@ -1224,7 +1158,7 @@ TEST_CASE("Schema EncodeStruct matches fixed-extent text wire bytes", "[schema][
     // Checks fixed-extent text against EncodeString: one string beside one scalar, so a mismatch can only be the
     // string, then two strings around two scalars. The strings are empty, short, and the extent minus one. A fourth
     // case fills the whole extent with no terminator: EncodeString would read past the array there, so it is compared
-    // against EncodeStringAs bounded by the extent, the call EncoderAdapter makes; that case checks the bound holds.
+    // against EncodeStringAs bounded by the extent, the call the encode Action makes; that case checks the bound holds.
     auto same_bytes = [](const encode::ParameterBuffer& actual, const encode::ParameterBuffer& oracle) {
         return actual.GetDataSize() == oracle.GetDataSize() &&
                std::memcmp(actual.GetData(), oracle.GetData(), actual.GetDataSize()) == 0;
@@ -1314,7 +1248,7 @@ TEST_CASE("Schema EncodeStruct matches wide-text pointer wire bytes", "[schema][
 
     for (LPCWSTR name : { static_cast<LPCWSTR>(nullptr), static_cast<LPCWSTR>(wide_name) })
     {
-        // Enum, HANDLE, LPCWSTR; has_extensions.
+        // Enum, HANDLE, LPCWSTR; ValidExtensions.
         VkImportMemoryWin32HandleInfoKHR import_memory{ VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR,
                                                         nullptr,
                                                         VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT,
@@ -1329,7 +1263,7 @@ TEST_CASE("Schema EncodeStruct matches wide-text pointer wire bytes", "[schema][
             oracle.EncodeWString(import_memory.name);
         }));
 
-        // A null semaphore handle ahead of the same three; no has_extensions.
+        // A null semaphore handle ahead of the same three; no ValidExtensions.
         VkImportSemaphoreWin32HandleInfoKHR import_semaphore{ VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR,
                                                               nullptr,
                                                               VK_NULL_HANDLE,
@@ -1465,7 +1399,7 @@ TEST_CASE("Schema EncodeStruct matches counted fixed-extent array wire bytes", "
     // Checks fixed-extent arrays whose length is a count Field: the run is written to the count, clamped to the
     // extent by ParameterEncoder::ClampStaticArrayLength. VkPhysicalDeviceMemoryProperties holds two structure arrays.
     // VkPhysicalDeviceGroupProperties::physicalDevices is the only fixed array of handles in vk.xml, so it is the only
-    // case for the fixed-array half of EncoderAdapter's handle-array overload. Counts sit below the extents, so a
+    // case for the fixed-array half of the encode Action's handle run. Counts sit below the extents, so a
     // full-extent run lands on different bytes. For counts over the extents, the oracle writes the count as set and
     // the run clamped to the extent.
     using namespace gfxrecon::encode::vulkan_wrappers;
@@ -1647,7 +1581,7 @@ TEST_CASE("Schema EncodeStruct matches counted fixed-extent array wire bytes", "
 
 TEST_CASE("Schema EncodeStruct matches pointer-array wire bytes", "[schema][encode]")
 {
-    // Checks a counted run of pointers, each to one item: NullTerminatedArrayField for strings, PointerArrayField for
+    // Checks a counted run of pointers, each to one item: StringArrayField for strings, PointerArrayField for
     // structures. The storage is the same for both, and the wire is not: text is written as a one-dimensional string
     // array, structures as EncodeStructArray2D with every inner length 1, the encoder's form of a pointer to one
     // structure.
@@ -1656,7 +1590,7 @@ TEST_CASE("Schema EncodeStruct matches pointer-array wire bytes", "[schema][enco
     namespace instance_field = schema::vulkan::fields::VkInstanceCreateInfo;
     namespace micromap_field = schema::vulkan::fields::VkAccelerationStructureGeometryMicromapDataKHR;
 
-    static_assert(schema::NullTerminatedArrayField<instance_field::ppEnabledLayerNames>);
+    static_assert(schema::StringArrayField<instance_field::ppEnabledLayerNames>);
     static_assert(!schema::PointerArrayField<instance_field::ppEnabledLayerNames>);
     static_assert(std::is_pointer_v<
                   std::remove_pointer_t<schema::ApiTypeOf_t<instance_field::ppEnabledLayerNames::declaration>>>);
@@ -1664,18 +1598,15 @@ TEST_CASE("Schema EncodeStruct matches pointer-array wire bytes", "[schema][enco
                                  schema::FieldValue<instance_field::enabledExtensionCount>>);
 
     static_assert(schema::PointerArrayField<micromap_field::ppUsageCounts>);
-    static_assert(schema::StructApiElement<micromap_field::ppUsageCounts::api_element>);
+    static_assert(schema::StructOrUnionApiElement<micromap_field::ppUsageCounts::api_element>);
     static_assert(
         std::is_pointer_v<std::remove_pointer_t<schema::ApiTypeOf_t<micromap_field::ppUsageCounts::declaration>>>);
     static_assert(std::is_same_v<schema::LengthOf_t<micromap_field::ppUsageCounts>,
                                  schema::FieldValue<micromap_field::usageCountsCount>>);
     static_assert(schema::ArrayField<micromap_field::pUsageCounts>);
 
-    // ppUsageCounts is AnyPointerField and AnyCountedField, not AnyArrayField. To the decoder both counted forms are
-    // pointer forms: a PointerDecoder reads depth and length from the wire.
-    static_assert(schema::AnyPointerField<micromap_field::ppUsageCounts>);
-    static_assert(schema::AnyCountedField<micromap_field::ppUsageCounts>);
-    static_assert(!schema::AnyArrayField<micromap_field::ppUsageCounts>);
+    // ppUsageCounts is an ArrayField too: PointerArrayField is an ArrayField whose item is a Pointer.
+    static_assert(schema::ArrayField<micromap_field::ppUsageCounts>);
 
     auto same_bytes = [](const encode::ParameterBuffer& actual, const encode::ParameterBuffer& oracle) {
         return actual.GetDataSize() == oracle.GetDataSize() &&
@@ -2006,10 +1937,10 @@ TEST_CASE("Schema EncodeStruct matches computed-count wire bytes", "[schema][enc
 
 TEST_CASE("Get yields a Field's value in place or by copy", "[schema]")
 {
-    // An addressable member is referenced where it lives: Get returns the member itself. A bitfield has no address,
-    // so Get reads it through the generated accessor and yields the value.
+    // An ordinary member is referenced where it lives: Get returns the member itself. A bitfield has no address, so
+    // Get reads it through the Field's Get and yields the value.
     using width = schema::vulkan::fields::VkExtent2D::width;
-    static_assert(schema::Addressable<VkExtent2D, width>);
+    static_assert(!schema::FieldWithBitWidth<width>);
     static_assert(std::is_same_v<decltype(schema::Get(std::declval<const VkExtent2D&>(), width{})), const uint32_t&>);
 
     VkExtent2D extent{ 3u, 4u };
@@ -2017,7 +1948,7 @@ TEST_CASE("Get yields a Field's value in place or by copy", "[schema]")
     CHECK(schema::Get(extent, width{}) == 3u);
 
     using flag = schema::vulkan::fields::StdVideoH264SpsVuiFlags::aspect_ratio_info_present_flag;
-    static_assert(schema::NonAddressable<StdVideoH264SpsVuiFlags, flag>);
+    static_assert(schema::FieldWithBitWidth<flag>);
     static_assert(!std::is_reference_v<decltype(schema::Get(std::declval<const StdVideoH264SpsVuiFlags&>(), flag{}))>);
 
     StdVideoH264SpsVuiFlags flags{};
@@ -2028,9 +1959,9 @@ TEST_CASE("Get yields a Field's value in place or by copy", "[schema]")
 TEST_CASE("A length reads a length through a pointer sibling", "[schema]")
 {
     // Three command parameters have a vk.xml len of the form param->member, with no parameter that holds the count
-    // itself. The generator emits StoragePtrValue<param, member> for each; its Get reads param, dereferences it, and
-    // reads member from the structure it points at. That structure's own Fields and MemberPointer specializations serve
-    // the inner read, so the schema declares the member and emits nothing else for it.
+    // itself. The generator emits StorageValue<Deref<FieldValue<param>>, member> for each; its Get reads param,
+    // dereferences it, and reads member from the structure it points at. That structure's own Fields serve the inner
+    // read, so the schema declares the member and emits nothing else for it.
     namespace alloc_info_field = schema::vulkan::fields::VkCommandBufferAllocateInfo;
     namespace set_field        = schema::vulkan::fields::AllocateDescriptorSets;
     namespace set_info_field   = schema::vulkan::fields::VkDescriptorSetAllocateInfo;
@@ -2038,20 +1969,22 @@ TEST_CASE("A length reads a length through a pointer sibling", "[schema]")
     namespace build_field      = schema::vulkan::fields::VkAccelerationStructureBuildGeometryInfoKHR;
 
     static_assert(schema::PointerField<alloc_field::pAllocateInfo>);
-    static_assert(
-        std::is_same_v<schema::LengthOf_t<alloc_field::pCommandBuffers>,
-                       schema::StoragePtrValue<alloc_field::pAllocateInfo, alloc_info_field::commandBufferCount>>);
-    static_assert(
-        std::is_same_v<schema::LengthOf_t<set_field::pDescriptorSets>,
-                       schema::StoragePtrValue<set_field::pAllocateInfo, set_info_field::descriptorSetCount>>);
+    static_assert(std::is_same_v<schema::LengthOf_t<alloc_field::pCommandBuffers>,
+                                 schema::StorageValue<schema::Deref<schema::FieldValue<alloc_field::pAllocateInfo>>,
+                                                      alloc_info_field::commandBufferCount>>);
+    static_assert(std::is_same_v<schema::LengthOf_t<set_field::pDescriptorSets>,
+                                 schema::StorageValue<schema::Deref<schema::FieldValue<set_field::pAllocateInfo>>,
+                                                      set_info_field::descriptorSetCount>>);
     static_assert(std::is_same_v<schema::LengthOf_t<sizes_field::pMaxPrimitiveCounts>,
-                                 schema::StoragePtrValue<sizes_field::pBuildInfo, build_field::geometryCount>>);
+                                 schema::StorageValue<schema::Deref<schema::FieldValue<sizes_field::pBuildInfo>>,
+                                                      build_field::geometryCount>>);
 
-    // The two-argument form is a length the Action can evaluate on a store that holds the pointer parameter
-    // (StorageWithLength); its FieldStore, the store member is read from, is the structure the pointer points at.
+    // It is a length the Action can evaluate on a store that holds the pointer parameter (StorageWithLength); Deref
+    // yields the structure the pointer points at, which member is read from.
     static_assert(schema::StorageWithLength<AllocateCallStorage, alloc_field::pCommandBuffers>);
-    static_assert(std::is_same_v<schema::LengthOf_t<alloc_field::pCommandBuffers>::FieldStore<AllocateCallStorage>,
-                                 VkCommandBufferAllocateInfo>);
+    static_assert(std::is_same_v<decltype(schema::Deref<schema::FieldValue<alloc_field::pAllocateInfo>>::Get(
+                                     std::declval<const AllocateCallStorage&>())),
+                                 const VkCommandBufferAllocateInfo&>);
 
     VkCommandBufferAllocateInfo info{};
     info.commandBufferCount = 3u;
@@ -2081,7 +2014,7 @@ TEST_CASE("A length reads a length through a pointer sibling", "[schema]")
 
     encode::ParameterBuffer  buffer;
     encode::ParameterEncoder encoder(&buffer);
-    encode::EncodeStructAction(&encoder).Apply(alloc_field::pCommandBuffers{}, store);
+    encode::EncodeStructAction(&encoder).Apply(store, alloc_field::pCommandBuffers{});
 
     encode::ParameterBuffer  oracle_buffer;
     encode::ParameterEncoder oracle(&oracle_buffer);
@@ -2363,7 +2296,7 @@ TEST_CASE("A field walk decodes a pointer to a structure through the same overlo
     using namespace gfxrecon::decode;
 
     // Checks VkDeviceBufferMemoryRequirements::pCreateInfo, a pointer to one VkBufferCreateInfo. It takes the
-    // structure-run overload (AnyPointerField): StructPointerDecoder reads its own length from the wire, so one
+    // structure branch of the pointer Apply: StructPointerDecoder reads its own length from the wire, so one
     // structure is a run of one. The element is a large extensible structure, so this descends into a second walk,
     // including that element's own pNext.
     util::Log::Init(util::LoggingSeverity::kError);
@@ -2425,9 +2358,9 @@ TEST_CASE("A field walk writes a bitfield through Set, since it has no address",
     using namespace gfxrecon::decode;
 
     // Checks StdVideoAV1TileInfoFlags: uniform_tile_spacing_flag : 1 and reserved : 31. Neither member has an
-    // address, so its MemberPointer specialization holds generated Get and Set accessors in place of a
-    // pointer-to-member, and the walk writes through Set. Each bitfield is a whole uint32_t on the wire, so a one-bit
-    // flag costs four bytes: 8 bytes for two fields, and reserved carries a value wider than one bit.
+    // address, so its Field holds Get and Set accessors in place of GetRef, and the walk writes through Set. Each
+    // bitfield is a whole uint32_t on the wire, so a one-bit flag costs four bytes: 8 bytes for two fields, and
+    // reserved carries a value wider than one bit.
     util::Log::Init(util::LoggingSeverity::kError);
 
     auto parameter_buffer  = std::make_unique<encode::ParameterBuffer>();
@@ -2776,9 +2709,10 @@ TEST_CASE("One overload takes a scalar pointer and a scalar run in the same stru
 {
     using namespace gfxrecon::decode;
 
-    // Checks VkRenderingInputAttachmentIndexInfo: a uint32_t run and two pointers to one uint32_t take one overload
-    // (ScalarApiElement and AnyPointerField), since PointerDecoder reads its own length from the wire and one element
-    // is a run of one. VkBindMemoryStatus::pResult reaches the same overload with an enum.
+    // Checks VkRenderingInputAttachmentIndexInfo: a uint32_t run takes the array Apply and two pointers to one
+    // uint32_t take the pointer Apply, each in its last branch (SimpleApiElement): PointerDecoder reads its own
+    // length from the wire, so one element is a run of one. VkBindMemoryStatus::pResult reaches the pointer Apply's
+    // last branch with an enum.
     util::Log::Init(util::LoggingSeverity::kError);
 
     auto parameter_buffer  = std::make_unique<encode::ParameterBuffer>();

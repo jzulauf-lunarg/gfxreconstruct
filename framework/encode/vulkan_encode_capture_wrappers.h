@@ -38,8 +38,7 @@
 GFXRECON_BEGIN_NAMESPACE(gfxrecon)
 GFXRECON_BEGIN_NAMESPACE(encode)
 
-// Declared, not defined: for a handle API element without a specialization, ApiElementWithCaptureWrapper is false, and
-// no EncoderAdapter handle overload accepts its Field.
+// Declared, not defined: a handle API element with no specialization does not satisfy ApiElementWithCaptureWrapper.
 template <typename ApiType>
 struct CaptureWrapperOf;
 

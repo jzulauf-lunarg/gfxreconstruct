@@ -16899,16 +16899,16 @@ static_assert(std::is_same_v<std::remove_cv_t<std::remove_pointer_t<schema::vulk
 static_assert(std::is_same_v<std::remove_cv_t<std::remove_pointer_t<schema::vulkan::api_elements::deref_HWND::source_type>>, schema::ApiTypeOf_t<schema::vulkan::api_elements::deref_HWND>>);
 static_assert(std::is_same_v<std::remove_cv_t<std::remove_pointer_t<schema::vulkan::api_elements::deref_LPCWSTR::source_type>>, schema::ApiTypeOf_t<schema::vulkan::api_elements::deref_LPCWSTR>>);
 static_assert(std::is_same_v<std::remove_cv_t<std::remove_pointer_t<schema::vulkan::api_elements::deref_VkRemoteAddressNV::source_type>>, schema::ApiTypeOf_t<schema::vulkan::api_elements::deref_VkRemoteAddressNV>>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::AHardwareBuffer> || schema::VoidApiElement<schema::vulkan::api_elements::AHardwareBuffer>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::ANativeWindow> || schema::VoidApiElement<schema::vulkan::api_elements::ANativeWindow>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::CAMetalLayer> || schema::VoidApiElement<schema::vulkan::api_elements::CAMetalLayer>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::VkBool32> || schema::VoidApiElement<schema::vulkan::api_elements::VkBool32>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::VkDeviceAddress> || schema::VoidApiElement<schema::vulkan::api_elements::VkDeviceAddress>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::VkDeviceSize> || schema::VoidApiElement<schema::vulkan::api_elements::VkDeviceSize>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::VkFlags> || schema::VoidApiElement<schema::vulkan::api_elements::VkFlags>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::VkFlags64> || schema::VoidApiElement<schema::vulkan::api_elements::VkFlags64>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::VkSampleMask> || schema::VoidApiElement<schema::vulkan::api_elements::VkSampleMask>);
-static_assert(schema::ScalarApiElement<schema::vulkan::api_elements::deref_VkRemoteAddressNV> || schema::VoidApiElement<schema::vulkan::api_elements::deref_VkRemoteAddressNV>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::AHardwareBuffer> || schema::VoidApiElement<schema::vulkan::api_elements::AHardwareBuffer>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::ANativeWindow> || schema::VoidApiElement<schema::vulkan::api_elements::ANativeWindow>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::CAMetalLayer> || schema::VoidApiElement<schema::vulkan::api_elements::CAMetalLayer>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::VkBool32> || schema::VoidApiElement<schema::vulkan::api_elements::VkBool32>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::VkDeviceAddress> || schema::VoidApiElement<schema::vulkan::api_elements::VkDeviceAddress>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::VkDeviceSize> || schema::VoidApiElement<schema::vulkan::api_elements::VkDeviceSize>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::VkFlags> || schema::VoidApiElement<schema::vulkan::api_elements::VkFlags>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::VkFlags64> || schema::VoidApiElement<schema::vulkan::api_elements::VkFlags64>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::VkSampleMask> || schema::VoidApiElement<schema::vulkan::api_elements::VkSampleMask>);
+static_assert(schema::SimpleApiElement<schema::vulkan::api_elements::deref_VkRemoteAddressNV> || schema::VoidApiElement<schema::vulkan::api_elements::deref_VkRemoteAddressNV>);
 
 
 // The HAS_STRUCTURE_TYPE inventory property against the API element's structure_type member: two emissions
