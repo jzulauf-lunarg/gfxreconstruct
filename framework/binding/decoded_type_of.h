@@ -24,11 +24,11 @@
 // an args structure. That type is decode's choice, not the registry's, so it is a binding, not an API element member.
 // The other direction needs no binding: a wrapper holds its API element as api_element.
 //
-// This header declares the template and nothing more. An API's specializations are an inventory visitor in
-// binding/<api>_decoded_type.h, which is the header API code includes; with this header alone,
+// This header declares the template and nothing more. An API's specializations are in
+// generated/generated_<api>_decoded_type.h, which is the header API code includes; with this header alone,
 // ApiElementWithDecodedType is false for every API element.
-// NOTE: a translation unit that evaluates ApiElementWithDecodedType before including binding/<api>_decoded_type.h
-// gets false, silently, and the compiler is not required to diagnose the late specialization.
+// NOTE: a translation unit that evaluates ApiElementWithDecodedType before including that header gets false,
+// silently, and the compiler is not required to diagnose the late specialization.
 
 #ifndef GFXRECON_BINDING_DECODED_TYPE_OF_H
 #define GFXRECON_BINDING_DECODED_TYPE_OF_H

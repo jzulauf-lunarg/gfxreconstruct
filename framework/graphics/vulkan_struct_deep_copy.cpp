@@ -23,8 +23,8 @@
 */
 
 #include "binding/structure_type.h"
-#include "binding/vulkan_api_element_of.h"
-#include "binding/vulkan_catalog.h"
+#include "generated/generated_vulkan_api_element_of.h"
+#include "generated/generated_vulkan_catalog.h"
 #include "graphics/vulkan_struct_deep_copy.h"
 #include "schema/structure_type_index.h"
 #include "util/logging.h"

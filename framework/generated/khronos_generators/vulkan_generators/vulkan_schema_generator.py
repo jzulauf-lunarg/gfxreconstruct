@@ -27,7 +27,8 @@ owns a separate field order. One generator class writes each file:
     generated_vulkan_schema_types.h: the API elements and command API elements
     generated_vulkan_schema_fields.h: the Fields
     generated_vulkan_schema.h: the Schema specializations
-    generated_vulkan_inventory.h: the inventory
+    generated_vulkan_catalog.h: the catalog lists
+    the LIST_FILES files: one line per API element, each file described by its LIST_FILES entry
     generated_vulkan_schema_enumerants.h: the enumerant tables
     generated_vulkan_wire_types.h: the WireTypeOf specializations
     generated_vulkan_enum_to_string.cpp: the enum ToString definitions
@@ -51,13 +52,14 @@ declarator nests. It is read from the registry's full type, so each level's cons
 
 import json
 import sys
+from collections import namedtuple
 from generator import noneStr
 from khronos_base_generator import write
 from vulkan_base_generator import VulkanBaseGenerator, VulkanBaseGeneratorOptions
 
 class VulkanSchemaBaseGeneratorOptions(VulkanBaseGeneratorOptions):
-    """Holds the options shared by every generated schema file but the inventory, whose options derive from
-    VulkanBaseGeneratorOptions directly. Each subclass lists its file's headers in add_part_headers.
+    """Holds the options shared by every generated schema file. Each subclass lists its file's headers in
+    add_part_headers.
     """
 
     def __init__(
@@ -153,11 +155,171 @@ class VulkanSchemaGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
         ))
 
 
-class VulkanInventoryGeneratorOptions(VulkanBaseGeneratorOptions):
-    """Holds the options for generated_vulkan_inventory.h, which has no include guard, no includes and no namespace,
-    so that a consumer can include it inside its own namespace, with its own visit macros defined, once per thing it
-    builds.
+class VulkanCatalogGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
+    """Holds the options for generated_vulkan_catalog.h: the catalog lists, TypeLists of API elements in
+    binding::vulkan::catalog.
     """
+
+    def add_part_headers(self, begin_end):
+        begin_end.specific_headers.extend((
+            'generated/generated_vulkan_schema_types.h',
+            'schema/schema.h',
+            'util/defines.h',
+            'util/type_list.h',
+        ))
+
+
+# ListFile describes one generated file that holds one line per API element:
+#   headers, system_headers  The files it includes.
+#   namespace                The namespace it opens inside gfxrecon.
+#   preamble                 Fixed lines written before the lists.
+#   lists                    (comment, selection, line) per list. selection is the VulkanSchemaBaseGenerator method
+#                            that returns the API element names. line is written once per name: {name} is the API
+#                            element name and {stem} is the name without its two-letter API prefix.
+ListFile = namedtuple('ListFile', ('headers', 'system_headers', 'namespace', 'preamble', 'lists'))
+
+API_ELEMENT_OF_LINE = 'template <> struct ApiElementOf<::{name}> {{ using type = schema::vulkan::api_elements::{name}; }};'
+
+# LIST_FILES maps each such file to its description. VulkanListFileGenerator writes every one of them, and gencode.py
+# registers it once per file, so each file is its own target. To add a file, add an entry here and list the file in
+# generate_vulkan.py.
+LIST_FILES = {
+    'generated_vulkan_api_element_of.h': ListFile(
+        headers=('binding/api_element_of.h', 'generated/generated_vulkan_schema_types.h', 'util/defines.h'),
+        system_headers=(),
+        namespace='binding',
+        preamble=(),
+        lists=(
+            ('// binding::ApiElementOf for every structure, union and C enum: the API element of the C type. A 64-bit\n'
+             '// flag-bits type is a VkFlags64 typedef, so it has no specialization: one would key on uint64_t.',
+             'get_structure_api_elements', API_ELEMENT_OF_LINE),
+            ('', 'get_union_api_elements', API_ELEMENT_OF_LINE),
+            ('', 'get_native_enumerated_types', API_ELEMENT_OF_LINE),
+        )
+    ),
+    'generated_vulkan_call_id.h': ListFile(
+        headers=(
+            'binding/call_id_of.h', 'format/api_call_id.h', 'generated/generated_vulkan_schema_types.h',
+            'util/defines.h'
+        ),
+        system_headers=(),
+        namespace='binding',
+        preamble=(),
+        lists=(
+            ('// binding::CallId for every command: its format::ApiCallId enumerator.',
+             'get_command_api_elements',
+             'template <> struct CallId<schema::vulkan::api_elements::{name}> {{ static constexpr format::ApiCallId value = format::ApiCallId::ApiCall_vk{name}; }};'),
+        )
+    ),
+    'generated_vulkan_decoded_type.h': ListFile(
+        headers=(
+            'binding/decoded_type_of.h', 'decode/vulkan_decoder_args.h', 'generated/generated_vulkan_decoder_args.h',
+            'generated/generated_vulkan_schema_types.h', 'generated/generated_vulkan_struct_decoders.h',
+            'util/defines.h'
+        ),
+        system_headers=(),
+        namespace='binding',
+        preamble=(),
+        lists=(
+            ('// binding::DecodedTypeOf for every structure with a Decoded_ wrapper: that wrapper.',
+             'get_decodable_structure_api_elements',
+             'template <> struct DecodedTypeOf<schema::vulkan::api_elements::{name}> {{ using type = decode::Decoded_{name}; }};'),
+            ('// binding::DecodedTypeOf for every command: its args structure.',
+             'get_command_api_elements',
+             'template <> struct DecodedTypeOf<schema::vulkan::api_elements::{name}> {{ using type = decode::args::{name}; }};'),
+        )
+    ),
+    'generated_vulkan_capture_wrapper_of.h': ListFile(
+        headers=(
+            'encode/vulkan_encode_capture_wrappers.h', 'encode/vulkan_handle_wrappers.h',
+            'generated/generated_vulkan_schema_types.h', 'util/defines.h'
+        ),
+        system_headers=(),
+        namespace='encode',
+        preamble=(),
+        lists=(
+            ('// encode::CaptureWrapperOf for every handle: vulkan_wrappers::<Stem>Wrapper, where Stem is the handle name\n'
+             '// without its Vk prefix.',
+             'get_handle_api_elements',
+             'template <> struct CaptureWrapperOf<schema::vulkan::api_elements::{name}> {{ using type = vulkan_wrappers::{stem}Wrapper; }};'),
+        )
+    ),
+    'generated_vulkan_enum_to_string.h': ListFile(
+        headers=('format/platform_types.h', 'schema/schema.h', 'util/defines.h', 'util/to_string.h'),
+        system_headers=(),
+        namespace='util',
+        preamble=(
+            '// The explicit specializations of util/to_string.h\'s ToString primaries for every Vulkan C enum, plus a VkFlags',
+            '// form per flag-bits enum. They are defined over the enumerant tables in',
+            '// generated/generated_vulkan_enum_to_string.cpp. Specializations, not overloads: a specialization is found wherever',
+            '// the primary is, by the generic formatters in util/to_string.h too, and an overload would not be.',
+            '',
+            '// The two templates below are keyed on the API element, for the 64-bit flag-bits and mask types: C spells them',
+            '// VkFlags64, which cannot key an explicit specialization. They are explicitly instantiated in',
+            '// generated/generated_vulkan_enum_to_string.cpp. A call for an API element missing from that instantiation list is a',
+            '// link error (unresolved external), not a compile error.',
+            '',
+            '// Returns the name of one enumerant of Element.',
+            'template <schema::EnumApiElement Element>',
+            'std::string ToString(typename Element::element_type value,',
+            '                     ToStringFlags                  toStringFlags = kToString_Default,',
+            '                     uint32_t                       tabCount      = kToStringDefaultTabCount,',
+            '                     uint32_t                       tabSize       = kToStringDefaultTabSize);',
+            '',
+            '// Returns the set bits of a mask of Element, by name.',
+            'template <schema::BitmaskApiElement Element>',
+            'std::string ToString(VkFlags64     flags,',
+            '                     ToStringFlags toStringFlags = kToString_Default,',
+            '                     uint32_t      tabCount      = kToStringDefaultTabCount,',
+            '                     uint32_t      tabSize       = kToStringDefaultTabSize);',
+            '',
+        ),
+        lists=(
+            ('// ToString for every C enum.',
+             'get_native_enumerated_types',
+             'template <> std::string ToString<{name}>(const {name}& value, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'),
+            ('// ToString of a VkFlags mask for every flag-bits enum.',
+             'get_flag_bits_enums',
+             'template <> std::string ToString<{name}>(VkFlags vkFlags, ToStringFlags toStringFlags, uint32_t tabCount, uint32_t tabSize);'),
+        )
+    ),
+    'generated_vulkan_struct_encoders.cpp': ListFile(
+        headers=(
+            'encode/vulkan_encode_struct.h', 'encode/custom_vulkan_struct_encoders.h', 'encode/parameter_encoder.h',
+            'encode/struct_pointer_encoder.h', 'encode/vulkan_encode_struct_impl.h', 'util/defines.h'
+        ),
+        system_headers=(),
+        namespace='encode',
+        preamble=(),
+        lists=(
+            ('// Instantiates EncodeStruct once per structure, except those with a hand-written encoder, whose overloads are\n'
+             '// declared in encode/custom_vulkan_struct_encoders.h. Every other translation unit sees only the declaration and\n'
+             '// links to these instantiations.',
+             'get_generated_encode_structure_api_elements',
+             'template void EncodeStruct<{name}>(ParameterEncoder*, const {name}&);'),
+        )
+    ),
+    'generated_vulkan_struct_decoders.cpp': ListFile(
+        headers=(
+            'decode/vulkan_decode_struct_impl.h', 'generated/generated_vulkan_struct_decoders.h',
+            'decode/custom_vulkan_struct_decoders.h', 'decode/decode_allocator.h', 'decode/vulkan_pnext_node.h'
+        ),
+        system_headers=(),
+        namespace='decode',
+        preamble=(),
+        lists=(
+            ('// Instantiates DecodeStruct once per structure, except those with a hand-written decoder, whose overloads are\n'
+             '// declared in decode/custom_vulkan_struct_decoders_forward.h. A translation unit that includes only\n'
+             '// decode/vulkan_decode_struct.h links to these instantiations.',
+             'get_generated_decode_structure_api_elements',
+             'template size_t DecodeStruct<Decoded_{name}>(const uint8_t*, size_t, Decoded_{name}*);'),
+        )
+    ),
+}
+
+
+class VulkanListFileGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
+    """Holds the options for one LIST_FILES file, selected by filename."""
 
     def __init__(
         self,
@@ -170,18 +332,22 @@ class VulkanInventoryGeneratorOptions(VulkanBaseGeneratorOptions):
         protect_feature=False,
         extra_headers=[]
     ):
-        VulkanBaseGeneratorOptions.__init__(
+        self.list_file = LIST_FILES[filename]
+        VulkanSchemaBaseGeneratorOptions.__init__(
             self,
             blacklists,
             platform_types,
             filename,
             directory,
             prefix_text,
-            False,
-            False,
+            protect_file,
+            protect_feature,
             extra_headers=extra_headers
         )
-        self.begin_end_file_data.common_api_headers = []
+
+    def add_part_headers(self, begin_end):
+        begin_end.specific_headers.extend(self.list_file.headers)
+        begin_end.system_headers.extend(self.list_file.system_headers)
 
 
 class VulkanSchemaEnumerantsGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
@@ -237,12 +403,13 @@ class VulkanSchemaChecksGeneratorOptions(VulkanSchemaBaseGeneratorOptions):
     def add_part_headers(self, begin_end):
         begin_end.specific_headers.extend((
             'binding/enumerants.h',
-            'binding/vulkan_call_id.h',
-            'binding/vulkan_decoded_type.h',
-            'binding/vulkan_api_element_of.h',
             'binding/vulkan_wire_type.h',
             'decode/vulkan_decoder_args.h',
-            'binding/vulkan_catalog.h',
+            'generated/generated_vulkan_api_element_of.h',
+            'generated/generated_vulkan_call_id.h',
+            'generated/generated_vulkan_capture_wrapper_of.h',
+            'generated/generated_vulkan_catalog.h',
+            'generated/generated_vulkan_decoded_type.h',
             'generated/generated_vulkan_decoder_args.h',
             'generated/generated_vulkan_schema.h',
             'generated/generated_vulkan_schema_enumerants.h',
@@ -371,7 +538,6 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         # that choose it.
         self.member_selectors = dict()
         self.member_selections = dict()
-        self.may_reach_cache = dict()
         self.api_type_categories = dict()  # API element name to its schema::category word.
         self.api_type_wire_kinds = dict()  # API element name to the wire kind that selects its WireTypeOf.
         self.platform_api_types = set()  # Platform typedefs with an API element of their own, for the types header.
@@ -442,7 +608,7 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         """Selects the structures, unions and commands that get a Schema, and registers an API element for every type
         a generated file refers to."""
         # Every structure vk.xml gives members gets a Schema, and every union a Schema of Alternatives. A hand-written
-        # encoder, decoder or handle mapping is an inventory property, never the absence of a Schema. Platform
+        # encoder or decoder is a binding fact, read below, never the absence of a Schema. Platform
         # structures (platform_types.json structs) have no members and no Schema.
         self.schema_structs = list(self.all_struct_members)
         self.schema_unions = list(self.all_union_members)
@@ -452,29 +618,23 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         # name; a hand-written one is not.
         self.wrapper_structs = list(self.get_all_filtered_struct_names())
 
-        # Every decodable structure gets the HAS_DECODED_TYPE inventory property, hand-written decoder or not, so
-        # schema-driven code can reach its Decoded_ wrapper through binding::DecodedTypeOf.
+        # Every decodable structure gets a binding::DecodedTypeOf specialization, hand-written decoder or not, so
+        # schema-driven code can reach its Decoded_ wrapper.
         self.schema_decodable_structs = list(self.get_decodable_struct_names())
 
         self.schema_commands = list(self.get_all_filtered_cmd_names())
 
-        # The inputs of the inventory properties, which binding/vulkan_catalog.h reads back. A blacklists.json
-        # structures entry has a hand-written encoder and decoder; structures-encoder and structures-decoder, when
-        # present, list one side only. Platform structures count as hand-written for encode, decode and, through
-        # STRUCT_BLACKLIST, handle mapping.
+        # The binding facts the list files and the catalog select by. A blacklists.json structures entry has a
+        # hand-written encoder and decoder; structures-encoder and structures-decoder, when present, list one side
+        # only. Platform structures count as hand-written for encode and decode.
         with open(self.genOpts.blacklists, 'r') as blacklists:
             lists = json.load(blacklists)
         self.custom_encode_structs = set(lists['structures']) | set(lists.get('structures-encoder', ())) | set(self.PLATFORM_STRUCTS)
         self.custom_decode_structs = set(lists['structures']) | set(lists.get('structures-decoder', ())) | set(self.PLATFORM_STRUCTS)
-        self.custom_handle_mapping_structs = set(self.STRUCT_BLACKLIST) | set(self.STRUCT_MAPPERS_BLACKLIST)
         self.external_structs = set(self.PLATFORM_STRUCTS)
-        # A structure with a member vk.xml marks objecttype: an integer that holds a handle whose type a sibling gives.
-        self.generic_handle_structs = {
-            struct for struct, members in self.all_struct_members.items() if self.get_generic_handles(members)
-        }
         self.deep_copy_exclusions = lists['structures-deep-copy']
 
-        # 'void' always has an API element, because a void command still has one Return Field.
+                # 'void' always has an API element, because a void command still has one Return Field.
         self.add_api_type('void')
 
         for struct in self.schema_structs:
@@ -530,38 +690,6 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
     def clean_return_type(self, return_type):
         return return_type.strip() if return_type else 'void'
-
-    def may_reach_handles(self, name):
-        """Returns True if a value of this type can hold a handle: through a handle member, a generic handle, a
-        pNext, or a member structure or union that can. Broader than struct_might_have_handles in
-        khronos_base_generator.py, which the handle-mapping generators use: this one counts a pNext at any depth,
-        because a missed handle is the worse failure. Raises ValueError on a cycle through members other than pNext,
-        where the recursion would not end."""
-        if name in self.may_reach_cache:
-            if self.may_reach_cache[name] is None:
-                raise ValueError('may_reach_handles: {} reaches itself through a member'.format(name))
-            return self.may_reach_cache[name]
-
-        members = self.all_struct_members.get(name, self.all_union_members.get(name))
-        if members is None:
-            self.may_reach_cache[name] = False
-            return False
-
-        self.may_reach_cache[name] = None
-        generic_handles = self.get_generic_handles(members)
-        result = any(
-            value.name in generic_handles or self.get_logical_category(value.base_type) == 'Handle'
-            or self.is_extension_chain(value)
-            for value in members
-        )
-        if not result:
-            result = any(
-                self.get_logical_category(value.base_type) == 'Struct'
-                and self.may_reach_handles(self.resolve_type_alias(value.base_type))
-                for value in members
-            )
-        self.may_reach_cache[name] = result
-        return result
 
     def resolve_type_alias(self, base_type):
         """Follows registry aliases to the canonical type. An alias uses the schema of its canonical type."""
@@ -1406,22 +1534,6 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         """Returns every union API element, by name."""
         return [name for name in sorted(self.api_type_categories) if self.api_type_categories[name] == 'Union']
 
-    # Pairs each binding/vulkan_catalog.h list, read back from an inventory property, with the attribute holding the
-    # generator's input, for the size checks.
-    BINDING_CATALOG_LISTS = (
-        ('external_structures', 'external_structs'),
-        ('custom_encode_structures', 'custom_encode_structs'),
-        ('custom_decode_structures', 'custom_decode_structs'),
-        ('custom_handle_mapping_structures', 'custom_handle_mapping_structs'),
-        ('generic_handle_structures', 'generic_handle_structs'),
-        ('deep_copy_exclusions', 'deep_copy_exclusions'),
-    )
-
-    def get_binding_catalog_members(self, attribute):
-        """Returns the members of one catalog input that are structure or union API elements, by name."""
-        names = set(getattr(self, attribute))
-        return [name for name in self.get_structure_api_elements() + self.get_union_api_elements() if name in names]
-
     def get_structure_type(self, name):
         """Returns the registry's structure type enumerant for a structure API element, or None for an alias or a
         structure without one."""
@@ -1528,192 +1640,92 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
             )
             self.newline()
 
-    def get_inventory_handles(self):
-        """Returns every handle API element, by name. Each gets an encode::CaptureWrapperOf specialization from the
-        inventory."""
+    def get_handle_api_elements(self):
+        """Returns every handle API element, by name."""
         return [name for name in sorted(self.api_type_categories) if self.api_type_categories[name] == 'Handle']
 
-    def get_inventory_enums(self):
-        """Returns (name, is_flag_bits) for every C enum, by name."""
-        return [(enum, enum in self.bitmask_types) for enum in self.get_native_enumerated_types()]
+    def get_flag_bits_enums(self):
+        """Returns every C enum that is a flag-bits enum, by name."""
+        return [enum for enum in self.get_native_enumerated_types() if enum in self.bitmask_types]
 
-    INVENTORY_ROW_MACROS = (
-        'GFXRECON_INVENTORY_VISIT_STRUCT(Name)',
-        'GFXRECON_INVENTORY_VISIT_UNION(Name)',
-        'GFXRECON_INVENTORY_VISIT_HANDLE(Name, Stem)',
-        'GFXRECON_INVENTORY_VISIT_ENUM(Name)',
-        'GFXRECON_INVENTORY_VISIT_FLAG_BITS(Name)',
-        'GFXRECON_INVENTORY_VISIT_COMMAND(Name)',
-    )
+    def get_command_api_elements(self):
+        """Returns every command API element, in command order: the command name without its vk prefix."""
+        return [self.get_command_api_element_name(command) for command in self.schema_commands]
 
-    # Lists the inventory properties: the macro suffix, the C++ name a visit reads the property back as, the banner's
-    # one-line meaning, and the input the property is read from. A property is a fact the preprocessor cannot derive.
-    # Its bit is its index here, so append a new property to keep every existing mask value.
-    INVENTORY_PROPERTIES = (
-        ('HAS_DECODED_TYPE', 'binding::ApiElementWithDecodedType',
-         'binding::DecodedTypeOf maps it to its Decoded_ wrapper',
-         'vk.xml: every structure with members but the two base structures'),
-        ('MAY_REACH_HANDLES', 'no C++ reader',
-         'a handle is reachable through its fields, pNext included',
-         'vk.xml: a handle member, a generic handle, a pNext, or a member that can hold one'),
-        ('EXTERNAL', 'binding::vulkan::catalog::external_structures',
-         'a platform header defines it: an API element, no Schema',
-         'platform_types.json "structs"'),
-        ('CUSTOM_ENCODE', 'binding::vulkan::catalog::custom_encode_structures', 'its encoder is hand-written',
-         'blacklists.json "structures" and "structures-encoder", plus platform_types.json "structs"'),
-        ('CUSTOM_DECODE', 'binding::vulkan::catalog::custom_decode_structures', 'its decoder is hand-written',
-         'blacklists.json "structures" and "structures-decoder", plus platform_types.json "structs"'),
-        ('CUSTOM_HANDLE_MAPPING', 'binding::vulkan::catalog::custom_handle_mapping_structures',
-         'its unwrap and map bodies are hand-written, or absent',
-         'blacklists.json "structures" plus platform_types.json "structs" (STRUCT_BLACKLIST), and STRUCT_MAPPERS_BLACKLIST in vulkan_base_generator.py'),
-        ('GENERIC_HANDLE', 'binding::vulkan::catalog::generic_handle_structures',
-         'an integer member holds a handle; a sibling object-type member gives its type',
-         'vk.xml: a member with an objecttype attribute'),
-        ('DEEP_COPY_EXCLUDED', 'binding::vulkan::catalog::deep_copy_exclusions', 'vulkan_struct_deep_copy does not handle it',
-         'blacklists.json "structures-deep-copy"'),
-        ('HAS_STRUCTURE_TYPE', 'schema::TypedStructApiElement',
-         'it has a structure type, so a pNext chain can hold it',
-         'vk.xml: a structure type'),
-    )
+    def get_decodable_structure_api_elements(self):
+        """Returns the structure API elements with a Decoded_ wrapper, by name."""
+        decodable = set(self.schema_decodable_structs)
+        return [name for name in self.get_structure_api_elements() if name in decodable]
 
-    def inventory_property_macro(self, suffix):
-        return 'GFXRECON_INVENTORY_{}'.format(suffix)
+    def get_generated_encode_structure_api_elements(self):
+        """Returns the structure API elements without a hand-written encoder, by name."""
+        return [name for name in self.get_structure_api_elements() if name not in self.custom_encode_structs]
 
-    def get_inventory_properties(self, name):
-        """Returns the property suffixes of one structure or union inventory entry."""
-        properties = []
-        if name in self.schema_decodable_structs:
-            properties.append('HAS_DECODED_TYPE')
-        if self.may_reach_handles(name):
-            properties.append('MAY_REACH_HANDLES')
-        if name in self.external_structs:
-            properties.append('EXTERNAL')
-        if name in self.custom_encode_structs:
-            properties.append('CUSTOM_ENCODE')
-        if name in self.custom_decode_structs:
-            properties.append('CUSTOM_DECODE')
-        if name in self.custom_handle_mapping_structs:
-            properties.append('CUSTOM_HANDLE_MAPPING')
-        if name in self.generic_handle_structs:
-            properties.append('GENERIC_HANDLE')
-        if name in self.deep_copy_exclusions:
-            properties.append('DEEP_COPY_EXCLUDED')
-        if self.get_structure_type(name) is not None:
-            properties.append('HAS_STRUCTURE_TYPE')
-        return properties
+    def get_generated_decode_structure_api_elements(self):
+        """Returns the structure API elements without a hand-written decoder, by name."""
+        return [name for name in self.get_structure_api_elements() if name not in self.custom_decode_structs]
 
-    def get_inventory_groups(self, names):
-        """Returns the inventory entries grouped by property set, as (property suffixes, names), in the bit order
-        of each set."""
-        order = [suffix for suffix, _, _, _ in self.INVENTORY_PROPERTIES]
-        groups = dict()
-        for name in names:
-            properties = tuple(self.get_inventory_properties(name))
-            groups.setdefault(properties, []).append(name)
-        return sorted(groups.items(), key=lambda item: sum(1 << order.index(suffix) for suffix in item[0]))
+    def get_external_structure_api_elements(self):
+        """Returns the structure API elements a platform header defines, by name."""
+        return [name for name in self.get_structure_api_elements() if name in self.external_structs]
 
-    def write_inventory(self):
-        """Writes the inventory: one macro call per structure, union, handle, C enum and command, for a consumer to
-        expand into its own declarations."""
-        banner = [
-            '// THIS FILE IS A LIST, NOT A HEADER. IT HAS NO INCLUDE GUARD, AND IT DECLARES NOTHING.',
-            '//',
-            '// It holds one macro call per Vulkan structure, union, handle, C enum and command, and nothing else: no',
-            '// declarations, no namespace, no includes. It does not define the macros it calls: define them, include',
-            '// this file, and each macro call expands into what you defined. Include it once per thing you build from',
-            '// the list, inside the namespace the result belongs in.',
-            '//',
-            '// To use it:',
-            '//   1. Define the visit macros for the categories you want:',
-            '//        GFXRECON_INVENTORY_VISIT_STRUCT(Name)      GFXRECON_INVENTORY_VISIT_UNION(Name)',
-            '//        GFXRECON_INVENTORY_VISIT_HANDLE(Name, Stem)',
-            '//        GFXRECON_INVENTORY_VISIT_ENUM(Name)        GFXRECON_INVENTORY_VISIT_FLAG_BITS(Name)',
-            '//        GFXRECON_INVENTORY_VISIT_COMMAND(Name)',
-            '//      A category you leave undefined expands to nothing. Defining none is an error.',
-            '//   2. Optionally define GFXRECON_INVENTORY_REQUIRE and GFXRECON_INVENTORY_FORBID as masks of the',
-            '//      inventory properties below. A structure or union inventory entry expands only if it has every',
-            '//      REQUIRE property and no FORBID property. Both default to 0. Handles, enumerated types and',
-            '//      commands carry no properties and are not filtered.',
-            '//   3. #include "generated/generated_vulkan_inventory.h"',
-            '// Every visit, REQUIRE and FORBID definition is #undef\'d at the end, so the next include starts clean. The',
-            '// property macros stay defined.',
-            '//',
-            '// Where to put a new expansion: one that yields types, specializations, aliases or declarations',
-            '// goes in a header, since the compiler needs them wherever the type is asked for. One that yields',
-            '// definitions with linkage, explicit instantiations or function bodies goes in one .cpp -- in a',
-            '// header, every includer would define them again.',
-            '//',
-            '// Inventory properties: the mask macro, the C++ name a visit reads it back as, its meaning, and the input it',
-            '// is read from. The json files and vulkan_base_generator.py are in',
-            '// framework/generated/khronos_generators/vulkan_generators/.',
-        ]
-        width = max(len(self.inventory_property_macro(suffix)) for suffix, _, _, _ in self.INVENTORY_PROPERTIES)
-        reader_width = max(len(reader) for _, reader, _, _ in self.INVENTORY_PROPERTIES)
-        for suffix, reader, meaning, source in self.INVENTORY_PROPERTIES:
-            banner.append('//   {:<{}}  {:<{}}  {} -- {}'.format(self.inventory_property_macro(suffix), width, reader, reader_width, meaning, source))
-        banner.extend((
-            '//',
-            '// To read the list as C++, use the catalog, binding/vulkan_catalog.h, not this file.',
-            '',
-        ))
+    def write_list_file(self):
+        """Writes one LIST_FILES file: its preamble, then one line per selected API element for each of its lists."""
+        list_file = self.genOpts.list_file
+        body = ['GFXRECON_BEGIN_NAMESPACE({})'.format(list_file.namespace), '']
+        body.extend(list_file.preamble)
 
-        prologue = ['#if {}'.format(' && '.join('!defined({})'.format(macro.split('(')[0]) for macro in self.INVENTORY_ROW_MACROS))]
-        prologue.append('#error "generated_vulkan_inventory.h expands visit macros the includer defines; define at least one before including it"')
-        prologue.append('#endif')
-        for macro in self.INVENTORY_ROW_MACROS:
-            name = macro.split('(')[0]
-            prologue.extend(('#ifndef {}'.format(name), '#define {}'.format(macro), '#endif'))
-        prologue.append('#ifndef {}'.format(self.inventory_property_macro(self.INVENTORY_PROPERTIES[0][0])))
-        for bit, (suffix, _, _, _) in enumerate(self.INVENTORY_PROPERTIES):
-            prologue.append('#define {} 0x{:x}'.format(self.inventory_property_macro(suffix), 1 << bit))
-        prologue.append('#endif')
-        prologue.extend((
-            '#ifndef GFXRECON_INVENTORY_REQUIRE',
-            '#define GFXRECON_INVENTORY_REQUIRE 0',
-            '#endif',
-            '#ifndef GFXRECON_INVENTORY_FORBID',
-            '#define GFXRECON_INVENTORY_FORBID 0',
-            '#endif',
-            '#define GFXRECON_INVENTORY_SELECT(props) \\',
-            '    ((((props) & GFXRECON_INVENTORY_REQUIRE) == GFXRECON_INVENTORY_REQUIRE) && !((props) & GFXRECON_INVENTORY_FORBID))',
-            '',
-        ))
-
-        body = banner + prologue
-
-        for category, macro, names in (
-            ('Structures', 'GFXRECON_INVENTORY_VISIT_STRUCT', self.get_structure_api_elements()),
-            ('Unions', 'GFXRECON_INVENTORY_VISIT_UNION', self.get_union_api_elements()),
-        ):
-            body.append('// {}, by API element name, grouped by property set.'.format(category))
-            for properties, rows in self.get_inventory_groups(names):
-                mask = ' | '.join(self.inventory_property_macro(suffix) for suffix in properties) or '0'
-                body.append('')
-                body.append('// {}: {}'.format(len(rows), ', '.join(properties) if properties else 'no properties'))
-                body.append('#if GFXRECON_INVENTORY_SELECT({})'.format(mask))
-                body.extend('{}({})'.format(macro, row) for row in rows)
-                body.append('#endif')
+        for comment, selection, line in list_file.lists:
+            if comment:
+                body.append(comment)
+            body.extend(line.format(name=name, stem=name[2:]) for name in getattr(self, selection)())
             body.append('')
 
-        body.append('// Handles. Stem is the handle name without its Vk prefix; vulkan_encode_capture_wrappers.h pastes Stem##Wrapper.')
-        for handle in self.get_inventory_handles():
-            body.append('GFXRECON_INVENTORY_VISIT_HANDLE({}, {})'.format(handle, handle[2:]))
-        body.append('')
+        body.append('GFXRECON_END_NAMESPACE({})'.format(list_file.namespace))
+        write('\n'.join(body), file=self.outFile)
 
-        body.append('// C enums: FLAG_BITS for a flag-bits enum, whose values compose into a mask, ENUM for every other enum.')
-        for enum, is_flag_bits in self.get_inventory_enums():
-            body.append('GFXRECON_INVENTORY_VISIT_{}({})'.format('FLAG_BITS' if is_flag_bits else 'ENUM', enum))
-        body.append('')
+    def catalog_type_list(self, name, comment, elements):
+        """Returns the lines of one catalog list that is written out: a TypeList alias of the given API elements."""
+        lines = [comment, 'using {} = util::TypeList<'.format(name)]
+        lines.append(',\n'.join('    schema::vulkan::api_elements::{}'.format(element) for element in elements) + '>;')
+        lines.append('')
+        return lines
 
-        body.append('// Commands, by API element name: the command name without its vk prefix.')
-        for command in self.schema_commands:
-            body.append('GFXRECON_INVENTORY_VISIT_COMMAND({})'.format(self.get_command_api_element_name(command)))
-        body.append('')
-
-        for macro in self.INVENTORY_ROW_MACROS:
-            body.append('#undef {}'.format(macro.split('(')[0]))
-        body.extend(('#undef GFXRECON_INVENTORY_REQUIRE', '#undef GFXRECON_INVENTORY_FORBID', '#undef GFXRECON_INVENTORY_SELECT'))
-
+    def write_catalog(self):
+        """Writes the catalog: the two lists no rule over the schema states, written out, and the lists derived from
+        them, each one type-list operation."""
+        body = [
+            'GFXRECON_BEGIN_NAMESPACE(binding)',
+            'GFXRECON_BEGIN_NAMESPACE(vulkan)',
+            '',
+            '// A catalog list is a TypeList of the API elements that meet one rule. structures and deep_copy_exclusions are',
+            '// written out: C++ cannot list the API elements, and the exclusions are a binding fact. Every other list is one',
+            '// type-list operation over those two and the schema. generated_vulkan_schema_checks.cpp asserts the size of each.',
+            'GFXRECON_BEGIN_NAMESPACE(catalog)',
+            '',
+        ]
+        body.extend(self.catalog_type_list(
+            'structures', '// structures lists every structure API element.', self.get_structure_api_elements()
+        ))
+        body.extend(self.catalog_type_list(
+            'deep_copy_exclusions',
+            '// deep_copy_exclusions lists the structures vulkan_struct_deep_copy does not handle: blacklists.json\n'
+            '// "structures-deep-copy".',
+            self.get_deep_copy_excluded_api_elements()
+        ))
+        body.extend((
+            '// extensible_structures lists every structure with a structure_type.',
+            'using extensible_structures =',
+            '    decltype(util::TypeListKeep(structures{}, []<typename T>() { return schema::TypedStructApiElement<T>; }));',
+            '',
+            '// deep_copyable_structures lists the extensible structures that are not deep-copy exclusions.',
+            'using deep_copyable_structures = decltype(util::TypeListExclude(extensible_structures{}, deep_copy_exclusions{}));',
+            '',
+            'GFXRECON_END_NAMESPACE(catalog)',
+            '',
+            'GFXRECON_END_NAMESPACE(vulkan)',
+            'GFXRECON_END_NAMESPACE(binding)',
+        ))
         write('\n'.join(body), file=self.outFile)
 
     def write_checks(self):
@@ -1751,7 +1763,7 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         self.newline()
         write(
             '// Decoded_X::api_element and args::X::api_element, from the struct-decoders and args generators,\n'
-            '// against binding::DecodedTypeOf, which binding/vulkan_decoded_type.h builds from the inventory. A\n'
+            '// against binding::DecodedTypeOf, which generated/generated_vulkan_decoded_type.h specializes. A\n'
             '// mis-paired line in either fails here.',
             file=self.outFile
         )
@@ -1786,6 +1798,34 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
                 'typename Decoded_{name}::struct_type>);'.format(
                     path=self.get_api_element_path(struct), name=struct
                 ),
+                file=self.outFile
+            )
+
+        self.newline()
+        write(
+            '// Each structure and union C type against the element_type of its binding::ApiElementOf, which\n'
+            '// generated/generated_vulkan_api_element_of.h specializes.',
+            file=self.outFile
+        )
+
+        for name in self.get_structure_api_elements() + self.get_union_api_elements():
+            write(
+                'static_assert(std::is_same_v<schema::ApiTypeOf_t<binding::ApiElementOf<::{name}>::type>, '
+                '::{name}>);'.format(name=name),
+                file=self.outFile
+            )
+
+        self.newline()
+        write(
+            '// Each capture wrapper\'s HandleType against the element_type of the handle API element that\n'
+            '// generated/generated_vulkan_capture_wrapper_of.h maps to it.',
+            file=self.outFile
+        )
+
+        for name in self.get_handle_api_elements():
+            write(
+                'static_assert(std::is_same_v<encode::CaptureWrapperOf<schema::vulkan::api_elements::{name}>::type::HandleType, '
+                'schema::ApiTypeOf_t<schema::vulkan::api_elements::{name}>>);'.format(name=name),
                 file=self.outFile
             )
 
@@ -1877,42 +1917,22 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
 
         self.newline()
         self.newline()
-        write('// The HAS_STRUCTURE_TYPE inventory property against the API element\'s structure_type member: two emissions', file=self.outFile)
-        write('// of one vk.xml fact, checked against each other on every structure and union inventory entry.', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_REQUIRE GFXRECON_INVENTORY_HAS_STRUCTURE_TYPE', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_STRUCT(Name) static_assert(schema::TypedStructApiElement<schema::vulkan::api_elements::Name>);', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_UNION(Name) GFXRECON_INVENTORY_VISIT_STRUCT(Name)', file=self.outFile)
-        write('#include "generated/generated_vulkan_inventory.h"', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_FORBID GFXRECON_INVENTORY_HAS_STRUCTURE_TYPE', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_STRUCT(Name) static_assert(!schema::TypedStructApiElement<schema::vulkan::api_elements::Name>);', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_UNION(Name) GFXRECON_INVENTORY_VISIT_STRUCT(Name)', file=self.outFile)
-        write('#include "generated/generated_vulkan_inventory.h"', file=self.outFile)
-
         typed = sum(1 for struct in self.get_structure_api_elements() if self.get_structure_type(struct) is not None)
 
         self.newline()
         write('// Catalog list sizes against the counts this generator computed.', file=self.outFile)
-        write(
-            'constexpr size_t kStructuresCount = util::TypeListSize_v<binding::vulkan::catalog::structures>;\n' +
-            'static_assert(kStructuresCount == {});'.format(len(self.get_structure_api_elements())),
-            file=self.outFile
-        )
-        write(
-            'constexpr size_t kUnionsCount = util::TypeListSize_v<binding::vulkan::catalog::unions>;\n' +
-            'static_assert(kUnionsCount == {});'.format(len(self.get_union_api_elements())),
-            file=self.outFile
-        )
-        write(
-            'static_assert(util::TypeListSize_v<binding::vulkan::catalog::extensible_structures> == {});'.format(typed),
-            file=self.outFile
-        )
-
         excluded = self.get_deep_copy_excluded_api_elements()
         excluded_typed = [name for name in excluded if self.get_structure_type(name) is not None]
-        write(
-            'static_assert(util::TypeListSize_v<binding::vulkan::catalog::deep_copyable_structures> == {});'.format(typed - len(excluded_typed)),
-            file=self.outFile
-        )
+        for name, size in (
+            ('structures', len(self.get_structure_api_elements())),
+            ('deep_copy_exclusions', len(excluded)),
+            ('extensible_structures', typed),
+            ('deep_copyable_structures', typed - len(excluded_typed)),
+        ):
+            write(
+                'static_assert(util::TypeListSize_v<binding::vulkan::catalog::{}> == {});'.format(name, size),
+                file=self.outFile
+            )
 
         self.newline()
         write('// Each enumerated type\'s API element refers to its table, and each but a 64-bit flag-bits type is the', file=self.outFile)
@@ -1957,45 +1977,21 @@ class VulkanSchemaBaseGenerator(VulkanBaseGenerator):
         write('static_assert(!binding::ApiTypeWithApiElement<uint64_t>);', file=self.outFile)
 
         self.newline()
-        write('// The catalog: each list, read back from an inventory property, is the size of the input the', file=self.outFile)
-        write('// generator carried into that property.', file=self.outFile)
-        for name, attribute in self.BINDING_CATALOG_LISTS:
+        write('// A structure a platform header defines (platform_types.json "structs") has no Schema, and every other', file=self.outFile)
+        write('// structure has one.', file=self.outFile)
+        external = self.get_external_structure_api_elements()
+        for name in external:
             write(
-                'static_assert(util::TypeListSize_v<binding::vulkan::catalog::{}> == {});'.format(
-                    name, len(self.get_binding_catalog_members(attribute))
-                ),
+                'static_assert(!schema::HasSchemaFields<schema::vulkan::api_elements::{}>);'.format(name),
                 file=self.outFile
             )
-
-        self.newline()
-        write('// Inventory entry counts per category against the catalog and this generator\'s model. An entry the', file=self.outFile)
-        write('// generator dropped or doubled fails here by count.', file=self.outFile)
-        enums = self.get_inventory_enums()
-        for name, macro, expected in (
-            ('kInventoryStructs', 'GFXRECON_INVENTORY_VISIT_STRUCT', 'kStructuresCount'),
-            ('kInventoryUnions', 'GFXRECON_INVENTORY_VISIT_UNION', 'kUnionsCount'),
-            ('kInventoryHandles', 'GFXRECON_INVENTORY_VISIT_HANDLE', len(self.get_inventory_handles())),
-            ('kInventoryEnums', 'GFXRECON_INVENTORY_VISIT_ENUM', sum(1 for _, bits in enums if not bits)),
-            ('kInventoryFlagBits', 'GFXRECON_INVENTORY_VISIT_FLAG_BITS', sum(1 for _, bits in enums if bits)),
-            ('kInventoryCommands', 'GFXRECON_INVENTORY_VISIT_COMMAND', len(self.schema_commands)),
-        ):
-            write('#define {}(...) +1'.format(macro), file=self.outFile)
-            write('constexpr size_t {} = 0'.format(name), file=self.outFile)
-            write('#include "generated/generated_vulkan_inventory.h"', file=self.outFile)
-            write(';', file=self.outFile)
-            write('static_assert({} == {});'.format(name, expected), file=self.outFile)
-
-        self.newline()
-        write('// EXTERNAL against the Schemas: EXTERNAL comes from platform_types.json and a Schema from the members', file=self.outFile)
-        write('// vk.xml gives, so an external structure has no Schema and every other structure and union has one.', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_REQUIRE GFXRECON_INVENTORY_EXTERNAL', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_STRUCT(Name) static_assert(!schema::HasSchemaFields<schema::vulkan::api_elements::Name> && !schema::UnionApiElement<schema::vulkan::api_elements::Name>);', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_UNION(Name) GFXRECON_INVENTORY_VISIT_STRUCT(Name)', file=self.outFile)
-        write('#include "generated/generated_vulkan_inventory.h"', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_FORBID GFXRECON_INVENTORY_EXTERNAL', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_STRUCT(Name) static_assert(schema::HasSchemaFields<schema::vulkan::api_elements::Name> || schema::UnionApiElement<schema::vulkan::api_elements::Name>);', file=self.outFile)
-        write('#define GFXRECON_INVENTORY_VISIT_UNION(Name) GFXRECON_INVENTORY_VISIT_STRUCT(Name)', file=self.outFile)
-        write('#include "generated/generated_vulkan_inventory.h"', file=self.outFile)
+        write(
+            'static_assert(util::TypeListCountIf(binding::vulkan::catalog::structures{{}}, '
+            '[]<typename T>() {{ return schema::HasSchemaFields<T>; }}) == {});'.format(
+                len(self.get_structure_api_elements()) - len(external)
+            ),
+            file=self.outFile
+        )
 
         self.newline()
         write('GFXRECON_END_NAMESPACE(decode)', file=self.outFile)
@@ -2129,11 +2125,18 @@ class VulkanSchemaGenerator(VulkanSchemaBaseGenerator):
         self.write_schema_part(self.write_schemas)
 
 
-class VulkanInventoryGenerator(VulkanSchemaBaseGenerator):
-    """Generates generated_vulkan_inventory.h, the one list every visitor expands."""
+class VulkanCatalogGenerator(VulkanSchemaBaseGenerator):
+    """Generates generated_vulkan_catalog.h: the catalog lists."""
 
     def write_part(self):
-        self.write_inventory()
+        self.write_catalog()
+
+
+class VulkanListFileGenerator(VulkanSchemaBaseGenerator):
+    """Generates one LIST_FILES file, the one its options select."""
+
+    def write_part(self):
+        self.write_list_file()
 
 
 class VulkanSchemaChecksGenerator(VulkanSchemaBaseGenerator):

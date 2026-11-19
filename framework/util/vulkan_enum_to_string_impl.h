@@ -27,10 +27,10 @@
 #ifndef GFXRECON_UTIL_VULKAN_ENUM_TO_STRING_IMPL_H
 #define GFXRECON_UTIL_VULKAN_ENUM_TO_STRING_IMPL_H
 
-#include "util/vulkan_enum_to_string.h"
+#include "binding/enumerants.h"
+#include "generated/generated_vulkan_enum_to_string.h"
 #include "schema/schema.h"
 #include "util/defines.h"
-#include "binding/enumerants.h"
 #include "util/to_string.h"
 
 #include "vulkan/vulkan.h"

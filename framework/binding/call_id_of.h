@@ -23,11 +23,11 @@
 // CallId maps a command API element to the format::ApiCallId the capture file records for the command. It is a
 // binding, not an API element member: the registry gives a command no such number.
 //
-// This header declares the template and nothing more. An API's specializations are an inventory visitor in
-// binding/<api>_call_id.h, which is the header API code includes; with this header alone, CommandWithCallId is false
-// for every command.
-// NOTE: a translation unit that evaluates CommandWithCallId before including binding/<api>_call_id.h gets false,
-// silently, and the compiler is not required to diagnose the late specialization.
+// This header declares the template and nothing more. An API's specializations are in
+// generated/generated_<api>_call_id.h, which is the header API code includes; with this header alone,
+// CommandWithCallId is false for every command.
+// NOTE: a translation unit that evaluates CommandWithCallId before including that header gets false, silently, and
+// the compiler is not required to diagnose the late specialization.
 
 #ifndef GFXRECON_BINDING_CALL_ID_OF_H
 #define GFXRECON_BINDING_CALL_ID_OF_H

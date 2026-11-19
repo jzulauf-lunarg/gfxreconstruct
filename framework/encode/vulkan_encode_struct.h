@@ -23,8 +23,8 @@
 // This header declares the EncodeStruct template, one declaration for every schema-driven Vulkan structure.
 // generated/generated_vulkan_struct_encoders.h includes it, so a caller may include either.
 //
-// encode/vulkan_encode_struct_impl.h defines the template; only encode/vulkan_struct_encoders.cpp, which holds the
-// explicit instantiations, includes it.
+// encode/vulkan_encode_struct_impl.h defines the template; only generated/generated_vulkan_struct_encoders.cpp, which
+// holds the explicit instantiations, includes it.
 
 #ifndef GFXRECON_ENCODE_VULKAN_ENCODE_STRUCT_H
 #define GFXRECON_ENCODE_VULKAN_ENCODE_STRUCT_H

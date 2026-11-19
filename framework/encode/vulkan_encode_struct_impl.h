@@ -21,8 +21,8 @@
 */
 
 // This header defines EncodeStruct. Only a translation unit that instantiates it includes this header:
-// encode/vulkan_struct_encoders.cpp, with the explicit instantiations. A translation unit that only calls EncodeStruct
-// includes encode/vulkan_encode_struct.h and links to those instantiations.
+// generated/generated_vulkan_struct_encoders.cpp, with the explicit instantiations. A translation unit that only calls
+// EncodeStruct includes encode/vulkan_encode_struct.h and links to those instantiations.
 //
 // NOTE: in a translation unit that sees only the declaration, a call on a structure missing from those instantiations
 // is a link error (unresolved external), not a compile error.
@@ -32,9 +32,9 @@
 
 #include "encode/vulkan_encode_action.h"
 #include "encode/vulkan_encode_struct.h"
-#include "encode/vulkan_encode_capture_wrappers.h"
+#include "generated/generated_vulkan_api_element_of.h"
+#include "generated/generated_vulkan_capture_wrapper_of.h"
 #include "generated/generated_vulkan_schema.h"
-#include "binding/vulkan_api_element_of.h"
 #include "schema/schema.h"
 #include "util/defines.h"
 

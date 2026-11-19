@@ -61,7 +61,8 @@ from vulkan_schema_generator import (
     VulkanSchemaTypesGenerator, VulkanSchemaTypesGeneratorOptions,
     VulkanSchemaFieldsGenerator, VulkanSchemaFieldsGeneratorOptions,
     VulkanSchemaGenerator, VulkanSchemaGeneratorOptions,
-    VulkanInventoryGenerator, VulkanInventoryGeneratorOptions,
+    VulkanCatalogGenerator, VulkanCatalogGeneratorOptions,
+    VulkanListFileGenerator, VulkanListFileGeneratorOptions, LIST_FILES,
     VulkanSchemaChecksGenerator, VulkanSchemaChecksGeneratorOptions,
     VulkanSchemaEnumerantsGenerator, VulkanSchemaEnumerantsGeneratorOptions,
     VulkanWireTypesGenerator, VulkanWireTypesGeneratorOptions,
@@ -330,8 +331,8 @@ def make_gen_opts(args):
          VulkanSchemaFieldsGenerator, VulkanSchemaFieldsGeneratorOptions, True),
         ('generated_vulkan_schema.h',
          VulkanSchemaGenerator, VulkanSchemaGeneratorOptions, True),
-        ('generated_vulkan_inventory.h',
-         VulkanInventoryGenerator, VulkanInventoryGeneratorOptions, False),
+        ('generated_vulkan_catalog.h',
+         VulkanCatalogGenerator, VulkanCatalogGeneratorOptions, True),
         ('generated_vulkan_schema_checks.cpp',
          VulkanSchemaChecksGenerator, VulkanSchemaChecksGeneratorOptions, False),
         ('generated_vulkan_schema_enumerants.h',
@@ -340,6 +341,10 @@ def make_gen_opts(args):
          VulkanWireTypesGenerator, VulkanWireTypesGeneratorOptions, True),
         ('generated_vulkan_enum_to_string.cpp',
          VulkanEnumToStringBodyGenerator, VulkanEnumToStringBodyGeneratorOptions, False),
+    ) + tuple(
+        # One target per LIST_FILES file; a header gets an include guard.
+        (list_filename, VulkanListFileGenerator, VulkanListFileGeneratorOptions, list_filename.endswith('.h'))
+        for list_filename in LIST_FILES
     ):
         gen_opts[schema_filename] = [
             schema_generator,

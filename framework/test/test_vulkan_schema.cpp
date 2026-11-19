@@ -28,29 +28,29 @@
 
 #include <catch2/catch.hpp>
 
+#include "generated/generated_vulkan_call_id.h"
+#include "generated/generated_vulkan_decoded_type.h"
 #include "generated/generated_vulkan_schema.h"
-#include "binding/vulkan_call_id.h"
-#include "binding/vulkan_decoded_type.h"
 
 #include "decode/decode_allocator.h"
 #include "decode/vulkan_decode_struct_impl.h"
 #include "encode/parameter_buffer.h"
 #include "encode/parameter_encoder.h"
-#include "encode/vulkan_encode_capture_wrappers.h"
+#include "encode/struct_pointer_encoder.h"
 #include "encode/vulkan_encode_action.h"
 #include "encode/vulkan_encode_struct.h"
 #include "encode/vulkan_handle_wrapper_util.h"
-#include "encode/struct_pointer_encoder.h"
+#include "generated/generated_vulkan_capture_wrapper_of.h"
 #include "util/logging.h"
 
-#include "decode/vulkan_decoder_args.h"
-#include "generated/generated_vulkan_decoder_args.h"
-#include "generated/generated_vulkan_struct_decoders.h"
-#include "binding/vulkan_api_element_of.h"
 #include "binding/vulkan_wire_type.h"
-#include "generated/generated_vulkan_schema_enumerants.h"
-#include "util/vulkan_enum_to_string.h"
+#include "decode/vulkan_decoder_args.h"
+#include "generated/generated_vulkan_api_element_of.h"
+#include "generated/generated_vulkan_decoder_args.h"
 #include "generated/generated_vulkan_enum_to_json.h"
+#include "generated/generated_vulkan_enum_to_string.h"
+#include "generated/generated_vulkan_schema_enumerants.h"
+#include "generated/generated_vulkan_struct_decoders.h"
 #include "test/schema_fill.h"
 
 #include <cstring>

@@ -24,16 +24,16 @@
 
 #include <catch2/catch.hpp>
 
+#include "binding/enumerants.h"
 #include "encode/parameter_buffer.h"
 #include "encode/parameter_encoder.h"
 #include "encode/struct_pointer_encoder.h"
-#include "binding/vulkan_api_element_of.h"
-#include "binding/vulkan_catalog.h"
+#include "generated/generated_vulkan_api_element_of.h"
+#include "generated/generated_vulkan_catalog.h"
 #include "generated/generated_vulkan_schema_enumerants.h"
 #include "generated/generated_vulkan_schema_types.h"
 #include "generated/generated_vulkan_struct_encoders.h"
 #include "schema/structure_type_index.h"
-#include "binding/enumerants.h"
 #include "util/type_list.h"
 
 #include "vulkan/vulkan.h"

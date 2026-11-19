@@ -55,7 +55,7 @@ constexpr auto StructureTypesOf(util::TypeList<Elements...>)
         static_assert(std::same_as<decltype(util::TypeListDrop(List{}, kHasStructureType)), util::TypeList<>>,
                       "StructureTypeIndex: API elements without a structure_type");
     }
-    using Key                  = std::remove_cv_t<decltype(util::TypeListAt_t<0, List>::structure_type)>;
+    using Key                  = std::remove_cv_t<decltype(util::TypeListFront_t<List>::structure_type)>;
     constexpr auto kHasKeyType = []<typename Element>() {
         return std::is_same_v<Key, std::remove_cv_t<decltype(Element::structure_type)>>;
     };

@@ -31,14 +31,14 @@
 #include "vk_video/vulkan_video_codec_h265std_encode.h"
 #include "vk_video/vulkan_video_codecs_common.h"
 
-#include "binding/vulkan_decoded_type.h"
 #include "decode/custom_vulkan_struct_decoders.h"
 #include "decode/decode_allocator.h"
 #include "decode/vulkan_pnext_node.h"
 #include "decode/vulkan_pnext_typed_node.h"
-#include "binding/vulkan_catalog.h"
+#include "generated/generated_vulkan_catalog.h"
+#include "generated/generated_vulkan_decoded_type.h"
+#include "generated/generated_vulkan_enum_to_string.h"
 #include "generated/generated_vulkan_struct_decoders.h"
-#include "util/vulkan_enum_to_string.h"
 #include "schema/structure_type_index.h"
 #include "util/logging.h"
 

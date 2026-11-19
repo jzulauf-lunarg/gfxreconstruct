@@ -124,12 +124,11 @@ using Odds  = decltype(util::TypeListDrop(Wide{}, kIsEven));
 static_assert(util::TypeListSize_v<Wide> == kWide);
 static_assert(util::TypeListCountIf(Wide{}, kIsEven) == kWide / 2);
 static_assert(util::TypeListCountIf(Wide{}, util::detail::Not<decltype(kIsEven)>{}) == kWide / 2);
-static_assert(std::same_as<util::TypeListAt_t<0, Wide>, Tag<0>>);
-static_assert(std::same_as<util::TypeListAt_t<kWide - 1, Wide>, Tag<kWide - 1>>);
+static_assert(std::same_as<util::TypeListFront_t<Wide>, Tag<0>>);
 static_assert(util::TypeListSize_v<Evens> == kWide / 2);
 static_assert(util::TypeListSize_v<Odds> == kWide / 2);
-static_assert(std::same_as<util::TypeListAt_t<1, Evens>, Tag<2>>);
-static_assert(std::same_as<util::TypeListAt_t<1, Odds>, Tag<3>>);
+static_assert(util::TypeListContains_v<Evens, Tag<2>> && !util::TypeListContains_v<Evens, Tag<3>>);
+static_assert(util::TypeListContains_v<Odds, Tag<3>> && !util::TypeListContains_v<Odds, Tag<2>>);
 static_assert(util::TypeListContains_v<Wide, Tag<kWide - 1>>);
 static_assert(
     util::TypeListSize_v<decltype(util::TypeListExclude(Wide{}, util::TypeList<Tag<1>, Tag<3>, Tag<kWide>>{}))> ==

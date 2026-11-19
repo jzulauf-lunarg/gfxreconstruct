@@ -41,10 +41,10 @@
 #ifndef GFXRECON_ENCODE_VULKAN_ENCODE_ACTION_H
 #define GFXRECON_ENCODE_VULKAN_ENCODE_ACTION_H
 
+#include "binding/vulkan_wire_type.h"
 #include "encode/parameter_encoder.h"
 #include "encode/struct_pointer_encoder.h"
-#include "encode/vulkan_encode_capture_wrappers.h"
-#include "binding/vulkan_wire_type.h"
+#include "generated/generated_vulkan_capture_wrapper_of.h"
 #include "schema/field.h"
 
 #include "util/defines.h"

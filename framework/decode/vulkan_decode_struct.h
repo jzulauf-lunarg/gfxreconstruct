@@ -24,7 +24,7 @@
 // generated/generated_vulkan_struct_decoders.h includes it, so a caller may include either.
 //
 // decode/vulkan_decode_struct_impl.h defines the template, and the explicit instantiations are in
-// decode/vulkan_struct_decoders.cpp.
+// generated/generated_vulkan_struct_decoders.cpp.
 
 #ifndef GFXRECON_DECODE_VULKAN_DECODE_STRUCT_H
 #define GFXRECON_DECODE_VULKAN_DECODE_STRUCT_H

@@ -21,8 +21,9 @@
 */
 
 // This header defines DecodeStruct. Only a translation unit that instantiates it includes this header:
-// decode/vulkan_struct_decoders.cpp, with the explicit instantiations, and test/test_vulkan_schema.cpp. A translation
-// unit that only calls DecodeStruct includes decode/vulkan_decode_struct.h and links to those instantiations.
+// generated/generated_vulkan_struct_decoders.cpp, with the explicit instantiations, and test/test_vulkan_schema.cpp.
+// A translation unit that only calls DecodeStruct includes decode/vulkan_decode_struct.h and links to those
+// instantiations.
 //
 // NOTE: in a translation unit that sees only the declaration, a call on a wrapper missing from those instantiations is
 // a link error (unresolved external), not a compile error.
@@ -30,9 +31,9 @@
 #ifndef GFXRECON_DECODE_VULKAN_DECODE_STRUCT_IMPL_H
 #define GFXRECON_DECODE_VULKAN_DECODE_STRUCT_IMPL_H
 
-#include "binding/vulkan_decoded_type.h"
 #include "decode/vulkan_decode_action.h"
 #include "decode/vulkan_decode_struct.h"
+#include "generated/generated_vulkan_decoded_type.h"
 #include "generated/generated_vulkan_schema.h"
 #include "schema/schema.h"
 #include "util/defines.h"

@@ -330,8 +330,8 @@ class VulkanStructDeepCopyBodyGenerator(VulkanBaseGenerator):
 
     def checkType(self, typeinfo, typename):
         """Returns False for the structures in blacklists.json structures-deep-copy, which deep copy does not handle.
-        vulkan_schema_generator.py reads the same list for the DEEP_COPY_EXCLUDED inventory property, from which
-        binding/vulkan_catalog.h builds catalog::deep_copy_exclusions."""
+        vulkan_schema_generator.py reads the same list for catalog::deep_copy_exclusions in
+        generated_vulkan_catalog.h."""
         if not hasattr(self, 'deep_copy_exclusions'):
             with open(self.genOpts.blacklists, 'r') as blacklists:
                 self.deep_copy_exclusions = json.load(blacklists)['structures-deep-copy']

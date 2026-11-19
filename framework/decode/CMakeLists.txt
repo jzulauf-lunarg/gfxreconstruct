@@ -170,7 +170,6 @@ target_sources(gfxrecon_decode
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_pnext_struct_decoder.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_pnext_typed_node.h
                     ${CMAKE_CURRENT_LIST_DIR}/vulkan_stats_consumer.h
-                    ${CMAKE_CURRENT_LIST_DIR}/vulkan_struct_decoders.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/stat_decoder_base.h
                     ${CMAKE_CURRENT_LIST_DIR}/stat_decoder_base.cpp
                     ${CMAKE_CURRENT_LIST_DIR}/stat_consumer_base.h
@@ -349,12 +348,12 @@ target_sources(gfxrecon_decode
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_replay_dump_resources.cpp
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_schema.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_schema_fields.h
-                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_inventory.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_schema_types.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_schema_enumerants.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_wire_types.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_struct_decoders_forward.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_struct_decoders.h
+                    ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_struct_decoders.cpp
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_handle_mapping_util.cpp
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_struct_handle_mappers.h
                     ${GFXRECON_SOURCE_DIR}/framework/generated/generated_vulkan_struct_handle_mappers.cpp
